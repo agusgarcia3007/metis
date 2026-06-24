@@ -1,19 +1,12 @@
-# Model weights and corpora (large, fetched separately)
+# Rust build artifacts
+/target/
+
+# Model weights and corpora (large, fetched/generated separately)
 /models/
 /library/
 *.gguf
 *.bin
 *.safetensors
-
-# Build artifacts
-/tinyllm
-/dist/
-*.o
-*.so
-*.a
-
-# Go
-/vendor/
 
 # Scratch
 *.log
@@ -24,6 +17,3 @@
 
 # Downloaded data (fetched separately)
 /data/
-/metis
-/flint
-/tinyllm

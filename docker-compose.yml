@@ -1,6 +1,6 @@
 name: metis
 
-# Deploy Metis on a small box (tuned for ~4 GB RAM / 4 vCPU).
+# Deploy Metis (Rust) on a small box (tuned for ~4 GB RAM / 4 vCPU).
 #
 #   docker compose up -d --build         # starts ollama + metis (first run pulls ~1.5 GB of models)
 #   docker compose run --rm metis index /app/docs   # build the Library from mounted docs
@@ -41,7 +41,7 @@ services:
       - METIS_INDEX_DIR=/app/docs    # auto-build the Library from mounted docs on startup
     ports:
       - "8080:8080"
-    mem_limit: 384m                  # metis is a thin Go control plane
+    mem_limit: 384m                  # metis is a thin Rust control plane
     volumes:
       - metis-lib:/app/library       # the swappable knowledge index (persisted)
       - ./sample-docs:/app/docs:ro   # your documents, mounted read-only

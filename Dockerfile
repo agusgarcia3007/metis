@@ -1,19 +1,19 @@
 # syntax=docker/dockerfile:1
 
-# ---- build a static metis binary (no cgo, pure stdlib) ----
-FROM golang:1.26-alpine AS build
+# ---- build a static metis binary (musl + rustls, no openssl/cgo) ----
+FROM rust:1.89-alpine AS build
+RUN apk add --no-cache musl-dev
 WORKDIR /src
-COPY go.mod ./
-RUN go mod download
-COPY . .
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/metis ./cmd/metis
+COPY Cargo.toml ./
+COPY src ./src
+RUN cargo build --release --bin metis
 
-# ---- minimal runtime image (~15 MB) ----
+# ---- minimal runtime image ----
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates \
  && adduser -D -u 10001 metis
 WORKDIR /app
-COPY --from=build /out/metis /usr/local/bin/metis
+COPY --from=build /src/target/release/metis /usr/local/bin/metis
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh \
  && mkdir -p /app/library /app/docs \

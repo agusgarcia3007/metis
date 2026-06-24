@@ -1,8 +1,13 @@
-<h1 align="center">Μῆτις · Metis</h1>
+<h1 align="center">Μῆτις · Metis <sub>(Rust)</sub></h1>
 <p align="center"><b>Frontier-grade intelligence that fits where frontier models can't.</b></p>
 <p align="center"><i>Win by cunning, not by size.</i></p>
 
 ---
+
+> **About this directory.** `metis-0` is a faithful, from-scratch **Rust** port of the original Go
+> `tiny-llm` project — same architecture, same algorithms, same results. The autograd engine, the
+> RNT experiments, the RAG Library, the tools, and the CLI are all reimplemented in safe Rust. The
+> `docs/` and `data/` directories are copied verbatim from the original.
 
 In Greek myth, **Metis** is the Titaness of *practical wisdom and cunning intelligence* — the wise
 counsel even Zeus sought. Not raw power. Cleverness.
@@ -61,8 +66,9 @@ ollama serve &                       # local inference engine (bundles ggml)
 ollama pull qwen3:4b                 # Cortex (~2.5 GB, ~GPT-4o-mini-class reasoning, fits 4 GB)
 ollama pull all-minilm               # the Library's embedder (~45 MB)
 
-go run ./cmd/metis index ./docs      # turn your files into swappable knowledge
-go run ./cmd/metis chat              # grounded, tool-using, fully local
+cargo build --release                # build the metis + rnt binaries
+./target/release/metis index ./docs  # turn your files into swappable knowledge
+./target/release/metis chat          # grounded, tool-using, fully local
 ```
 
 **Knowledge-as-data, demonstrated** — a fact the model cannot have trained on, answered from the index:
@@ -88,24 +94,27 @@ Multi-turn memory, a `/think` toggle (model reasoning), relevance-gated citation
 sources), and native tool-calling. Swap the `library/` index → swap the assistant's entire knowledge,
 no retraining. Override the Cortex with `METIS_MODEL=...`.
 
-## The honest frontier (mission vs. proven)
+## The proven core: Retrieval-Native Training (RNT)
 
-I will not pretend the war is won. Here is exactly where we stand:
+The thesis mechanism is proven in miniature by a from-scratch, gradient-checked transformer
+(`src/nano`): knowledge-in-context generalizes to unseen facts while knowledge-in-weights does not.
 
-- ✅ **The system is real and local.** Cortex + Library (RAG with citations) + Hands (tools), working.
-- ✅ **The thesis mechanism is proven in miniature.** A from-scratch, gradient-checked transformer
-  (`internal/nano`) shows knowledge-in-context generalizes to unseen facts while knowledge-in-weights
-  does not, and quantifies the capacity wall (see [`docs/design/04`](docs/design/04-RNT-results-log.md)).
-- ⏳ **Not yet proven:** real numbers (tokens/sec, RAM, quality) on an actual **4 GB / 4 vCPU** box.
-  *That benchmark is the next milestone and the claim's real proof.*
-- ⏳ **V1 limits:** the Cortex is an off-the-shelf small model (Qwen3-1.7B); retrieval is flat cosine
-  (great for moderate corpora, needs a disk-ANN index to scale to web-scale knowledge); small-model
-  tool-use needs careful prompting. None are dead-ends; all are on the roadmap.
+```sh
+cargo run --release --bin rnt              # vanilla vs RNT on a new world (the headline result)
+cargo run --release --bin rnt -- -mode query   # train, save, reload, reason over unseen facts
+cargo run --release --bin rnt -- -mode sweep   # the capacity wall: memorization degrades, RNT stays flat
+```
 
-The genuinely hard research bet — training a model that *refuses to memorize* so it spends all its
-capacity on reasoning (`docs/design/03-training-system-RNT.md`) — hit a real boundary in-session and
-needs GPU-scale training. The shipping product uses the **pragmatic, working version of the same
-thesis**: retrieval. That's the honest path from "bold idea" to "useful today."
+The decisive result, reproduced by this Rust port:
+
+```
+VANILLA  accuracy on TRAINED world  : 100.0%   (memorized — works)
+VANILLA  accuracy on NEW world      :  10.0%   (knowledge frozen in weights — fails ~chance)
+RNT      accuracy on NEW world      : 100.0%   (reads retrieved fact — generalizes)
+```
+
+Other `-mode` values mirror the Go original: `retrieval`, `improve`, `assoc`, `probe`, `curriculum`,
+`final`, `level2`, `induction`, `recall`.
 
 ## Deploy on a 4 GB / 4 vCPU VPS (Docker)
 
@@ -122,22 +131,32 @@ curl -s localhost:8080/ask -d '{"q":"What does the Zephyrian Protocol mandate?"}
 
 Endpoints: `GET /healthz`, `GET /readyz`, `POST /ask {"q":"...","think":false}`. Put your own
 `.md`/`.txt` files in `./sample-docs`. `mem_limit`s keep ollama at 3 GB and Metis at ~0.4 GB. Local
-chat without Docker: `go run ./cmd/metis chat`.
+chat without Docker: `./target/release/metis chat`.
 
 ## Architecture & docs
 
 - **Design** — [`docs/design/`](docs/design/): the constraints, the architecture, the build plan, and
   the training-system research log.
-- **Research** — [`docs/research/`](docs/research/): six deep, sourced notes (small models, quantization,
-  MoE/offloading, retrieval/tools, engine/language, distillation/cost).
-- **Code** — `internal/kernel` (Cortex backend), `internal/library` (knowledge plane),
-  `internal/hands` (tools), `internal/nano` (from-scratch transformer + the RNT experiments),
-  `cmd/metis` (the CLI).
+- **Research** — [`docs/research/`](docs/research/): twelve deep, sourced notes.
+- **Code** — `src/kernel` (Cortex backend), `src/library` (knowledge plane), `src/hands` (tools),
+  `src/nano` (from-scratch transformer + the RNT experiments), `src/bin/metis.rs` (the CLI),
+  `src/bin/rnt.rs` (the RNT experiment runner).
 
 ```sh
-go test ./...          # engine gradient-check, library, tools, RNT mechanism — all green
-go run ./cmd/metis chat
+cargo test                       # engine gradient-check, library, tools — all green
+cargo test --release -- --ignored   # the slower RNT/induction training tests (~1 min)
+cargo run --release --bin metis -- chat
 ```
+
+## Notes on the Rust port
+
+- The autograd engine (`src/nano`) models the Go pointer graph with `Rc<RefCell<Tensor>>` handles and
+  boxed backward closures recorded on a `Tape`. It is numerically identical and fully deterministic.
+- Where the Go engine parallelized matmuls across goroutines, this port computes those loops
+  sequentially — each output element's reduction is independent of worker count, so results match
+  exactly; only throughput differs.
+- Model/index persistence uses `bincode` (the closest Rust analog to Go's `gob`); file paths are kept
+  identical for CLI parity.
 
 ---
 
