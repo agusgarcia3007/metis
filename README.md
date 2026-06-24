@@ -58,7 +58,7 @@ A real, runnable V1 — 100% local, no GPU:
 
 ```sh
 ollama serve &                       # local inference engine (bundles ggml)
-ollama pull qwen3:1.7b               # the Cortex (~1.4 GB)
+ollama pull qwen3:4b                 # Cortex (~2.5 GB, ~GPT-4o-mini-class reasoning, fits 4 GB)
 ollama pull all-minilm               # the Library's embedder (~45 MB)
 
 go run ./cmd/metis index ./docs      # turn your files into swappable knowledge

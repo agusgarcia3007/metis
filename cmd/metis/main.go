@@ -35,7 +35,11 @@ import (
 )
 
 const (
-	defaultModel = "qwen3:1.7b"
+	// Qwen3-4B is the Cortex: ~GPT-4o-mini-class on reasoning (AIME 73.8, MMLU 69.7, GPQA 55.9 —
+	// vs 1.7B's 48.3/60/40) yet fits a 4 GB box at Q4 (~2.5 GB weights, ~3.2 GB resident at ctx 4096;
+	// use ctx 2048 + KV-quant to stay comfortable). Override with METIS_MODEL (e.g. qwen3:1.7b for
+	// max speed on a tight box).
+	defaultModel = "qwen3:4b"
 	embedModel   = "all-minilm"
 	libPath      = "library/index.gob"
 	topK         = 4
@@ -64,6 +68,8 @@ func main() {
 		serve()
 	case "setup":
 		ensureModels()
+	case "extract":
+		runExtractBench()
 	default:
 		fmt.Fprintf(os.Stderr, "usage: metis [chat | serve | setup | index <paths...> | ask \"<q>\" | version]\n")
 		os.Exit(2)
@@ -283,6 +289,34 @@ func loadLibrary() *library.Store {
 	return st
 }
 
+// runExtractBench measures the extractive fast-path (no LLM): for each question it retrieves, extracts
+// the best sentence, and reports score + latency — to calibrate the cascade's confidence gate.
+func runExtractBench() {
+	emb := library.NewEmbedder(embedModel, ollamaHost())
+	store := loadLibrary()
+	if store == nil {
+		fmt.Println("no Library; run: metis index <docs>")
+		return
+	}
+	qs := []string{
+		"What does the Zephyrian Protocol mandate about resident memory?",
+		"Who ratified the Zephyrian Protocol and in what year?",
+		"What is the reference implementation codename?",
+		"How many knowledge shards may be cached in RAM?",
+		"What is the protocol's mascot?",
+		"What is the airspeed velocity of an unladen swallow?", // out-of-domain control
+	}
+	fmt.Printf("== extractive fast-path (no LLM) — score + latency ==\n\n")
+	for _, q := range qs {
+		t0 := time.Now()
+		qv, _ := emb.Embed(context.Background(), []string{q})
+		hits := store.Search(qv[0], topK)
+		ex, _ := library.Extract(context.Background(), emb, hits, q)
+		ms := time.Since(t0).Milliseconds()
+		fmt.Printf("Q: %s\n   answer: %q\n   score: %.2f  latency: %dms  src: %s\n\n", q, ex.Answer, ex.Score, ms, ex.Source)
+	}
+}
+
 // ---- ask: one-shot grounded answer ----
 
 func runAsk(question string) {
@@ -300,6 +334,14 @@ func runAsk(question string) {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 	sys, hits := ground(ctx, store, emb, question)
+
+	// CASCADE fast path: a confident extractive lookup answers in ~ms, skipping the LLM entirely.
+	if ex, ok := tryExtractive(ctx, emb, hits, question); ok {
+		fmt.Println(ex.Answer)
+		fmt.Printf("\033[2msources: [%s] (%.2f, extractive — no LLM)\033[0m\n", ex.Source, ex.Score)
+		return
+	}
+
 	msgs := []kernel.Message{{Role: "system", Content: sys}, {Role: "user", Content: question}}
 	reply, err := k.ChatTools(ctx, msgs, 0.4, []kernel.Tool{calcTool, clockTool},
 		func(ev string) { fmt.Printf("  \033[2m[tool] %s\033[0m\n", ev) })
@@ -309,6 +351,22 @@ func runAsk(question string) {
 	}
 	fmt.Println(strings.TrimSpace(reply))
 	printSources(hits)
+}
+
+// extractGate is the cosine threshold above which the extractive fast path is trusted (calibrated:
+// in-domain factoids score 0.6–0.9; off-topic ~0.17). Conservative so quality stays high.
+const extractGate = 0.62
+
+// tryExtractive returns a confident extractive answer (fast path) or ok=false to fall back to the LLM.
+func tryExtractive(ctx context.Context, emb *library.Embedder, hits []library.Hit, q string) (library.Extraction, bool) {
+	if len(hits) == 0 {
+		return library.Extraction{}, false
+	}
+	ex, err := library.Extract(ctx, emb, hits, q)
+	if err != nil || ex.Score < extractGate {
+		return library.Extraction{}, false
+	}
+	return ex, true
 }
 
 // ---- chat: interactive, grounded + tools ----
@@ -358,6 +416,16 @@ func chat() {
 
 		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 		sys, hits := ground(ctx, store, emb, line)
+		// cascade fast path: a confident extractive lookup answers instantly, no LLM
+		if ex, ok := tryExtractive(ctx, emb, hits, line); ok {
+			cancel()
+			fmt.Printf("\nmetis> %s\n\033[2msources: [%s] (%.2f, extractive)\033[0m\n", ex.Answer, ex.Source, ex.Score)
+			history = append(history,
+				kernel.Message{Role: "user", Content: line},
+				kernel.Message{Role: "assistant", Content: ex.Answer})
+			fmt.Print("\nyou> ")
+			continue
+		}
 		msgs := append([]kernel.Message{{Role: "system", Content: sys}}, history...)
 		msgs = append(msgs, kernel.Message{Role: "user", Content: line})
 
@@ -381,6 +449,7 @@ func chat() {
 
 type askResponse struct {
 	Answer  string   `json:"answer"`
+	Path    string   `json:"path,omitempty"` // "extractive" (fast, no LLM) | "generative"
 	Sources []source `json:"sources,omitempty"`
 }
 type source struct {
@@ -426,13 +495,20 @@ func serve() {
 		k.Think = req.Think
 		ctx := r.Context()
 		sys, hits := ground(ctx, store, emb, req.Q)
+		// cascade fast path: confident extractive lookup, no LLM
+		if ex, ok := tryExtractive(ctx, emb, hits, req.Q); ok {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(askResponse{Answer: ex.Answer, Path: "extractive",
+				Sources: []source{{N: 1, Source: ex.Source, Score: ex.Score}}})
+			return
+		}
 		msgs := []kernel.Message{{Role: "system", Content: sys}, {Role: "user", Content: req.Q}}
 		answer, err := k.ChatTools(ctx, msgs, 0.3, []kernel.Tool{calcTool, clockTool}, nil)
 		if err != nil {
 			http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), http.StatusBadGateway)
 			return
 		}
-		resp := askResponse{Answer: strings.TrimSpace(answer)}
+		resp := askResponse{Answer: strings.TrimSpace(answer), Path: "generative"}
 		for i, h := range hits {
 			resp.Sources = append(resp.Sources, source{N: i + 1, Source: h.Source, Score: h.Score})
 		}

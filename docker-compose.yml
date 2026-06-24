@@ -16,9 +16,11 @@ services:
     volumes:
       - ollama-models:/root/.ollama
     environment:
-      - OLLAMA_KEEP_ALIVE=10m        # keep the Cortex warm between requests
-      - OLLAMA_MAX_LOADED_MODELS=2   # Cortex (~1.4 GB) + tiny embedder fit together
-    mem_limit: 3g                    # the bulk of the 4 GB budget
+      - OLLAMA_KEEP_ALIVE=-1         # keep the Cortex pinned in RAM (no 82s cold reloads)
+      - OLLAMA_MAX_LOADED_MODELS=2   # Cortex + tiny embedder fit together
+      - OLLAMA_KV_CACHE_TYPE=q8_0    # halve KV-cache RAM so Qwen3-4B fits a 4 GB box
+      - OLLAMA_CONTEXT_LENGTH=2048   # smaller context = less KV RAM (plenty for RAG)
+    mem_limit: 3500m                 # Qwen3-4B Q4 (~2.5 GB) + KV + runtime; tight on a strict 4 GB box
     healthcheck:
       test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
       interval: 10s
@@ -34,7 +36,7 @@ services:
         condition: service_healthy
     environment:
       - OLLAMA_HOST=http://ollama:11434
-      - METIS_MODEL=qwen3:1.7b       # the Cortex; override to qwen3:4b on a bigger box
+      - METIS_MODEL=qwen3:4b         # ~GPT-4o-mini-class reasoning, fits 4 GB; set qwen3:1.7b for speed
       - PORT=8080
       - METIS_INDEX_DIR=/app/docs    # auto-build the Library from mounted docs on startup
     ports:
