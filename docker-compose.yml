@@ -36,6 +36,7 @@ services:
       - OLLAMA_HOST=http://ollama:11434
       - METIS_MODEL=qwen3:1.7b       # the Cortex; override to qwen3:4b on a bigger box
       - PORT=8080
+      - METIS_INDEX_DIR=/app/docs    # auto-build the Library from mounted docs on startup
     ports:
       - "8080:8080"
     mem_limit: 384m                  # metis is a thin Go control plane
