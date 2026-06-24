@@ -1,12 +1,12 @@
 # syntax=docker/dockerfile:1
 
-# ---- build a static metis binary (musl + rustls, no openssl/cgo) ----
+# ---- build a static metis binary (musl, pure-Rust http — no openssl/cgo/ring) ----
 FROM rust:1.89-alpine AS build
 RUN apk add --no-cache musl-dev
 WORKDIR /src
-COPY Cargo.toml ./
+COPY Cargo.toml Cargo.lock ./
 COPY src ./src
-RUN cargo build --release --bin metis
+RUN cargo build --locked --release --bin metis
 
 # ---- minimal runtime image ----
 FROM alpine:3.20
