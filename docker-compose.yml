@@ -1,0 +1,48 @@
+name: metis
+
+# Deploy Metis on a small box (tuned for ~4 GB RAM / 4 vCPU).
+#
+#   docker compose up -d --build         # starts ollama + metis (first run pulls ~1.5 GB of models)
+#   docker compose run --rm metis index /app/docs   # build the Library from mounted docs
+#   docker compose restart metis                     # serve picks up the new Library
+#   curl -s localhost:8080/ask -d '{"q":"..."}'      # ask the HTTP API
+#
+# Put your own .md/.txt files in ./sample-docs (mounted read-only at /app/docs).
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    volumes:
+      - ollama-models:/root/.ollama
+    environment:
+      - OLLAMA_KEEP_ALIVE=10m        # keep the Cortex warm between requests
+      - OLLAMA_MAX_LOADED_MODELS=2   # Cortex (~1.4 GB) + tiny embedder fit together
+    mem_limit: 3g                    # the bulk of the 4 GB budget
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 20s
+
+  metis:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - METIS_MODEL=qwen3:1.7b       # the Cortex; override to qwen3:4b on a bigger box
+      - PORT=8080
+    ports:
+      - "8080:8080"
+    mem_limit: 384m                  # metis is a thin Go control plane
+    volumes:
+      - metis-lib:/app/library       # the swappable knowledge index (persisted)
+      - ./sample-docs:/app/docs:ro   # your documents, mounted read-only
+
+volumes:
+  ollama-models:
+  metis-lib:

@@ -1,0 +1,29 @@
+# Model weights and corpora (large, fetched separately)
+/models/
+/library/
+*.gguf
+*.bin
+*.safetensors
+
+# Build artifacts
+/tinyllm
+/dist/
+*.o
+*.so
+*.a
+
+# Go
+/vendor/
+
+# Scratch
+*.log
+.DS_Store
+
+# Tooling
+/.claude/
+
+# Downloaded data (fetched separately)
+/data/
+/metis
+/flint
+/tinyllm

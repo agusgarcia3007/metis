@@ -1,0 +1,16 @@
+.git
+.gitignore
+.claude
+/models
+/library
+/data
+/dist
+/bench
+*.log
+.DS_Store
+/docs
+README.md
+Dockerfile
+docker-compose.yml
+.dockerignore
+sample-docs
