@@ -1,0 +1,6 @@
+  [parse_verdict] shot 0: fail | repair 1: fail | repair 2: fail
+  [evidence_text] shot 0: fail | repair 1: fail | repair 2: fail
+  [split_sentences] shot 0: fail | repair 1: fail | repair 2: fail
+  [parse_unary] shot 0: fail | repair 1: fail | repair 2: fail
+
+crossed with execution-feedback repair: 0/4

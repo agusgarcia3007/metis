@@ -1,0 +1,44 @@
+warming cargo cache...
+
+=== parse_verdict (src/conductor.rs) ===
+  sample 0 (t=0.2): fail [test-fail] 5s
+  sample 1 (t=0.8): fail [test-fail] 4s
+  sample 2 (t=0.8): fail [test-fail] 4s
+  sample 3 (t=0.8): fail [test-fail] 4s
+  sample 4 (t=0.8): fail [test-fail] 4s
+  -> pass@1=0  pass@5=0  (0/5 samples passed)
+
+=== evidence_text (src/conductor.rs) ===
+  sample 0 (t=0.2): fail [test-fail] 4s
+  sample 1 (t=0.8): fail [test-fail] 2s
+  sample 2 (t=0.8): fail [test-fail] 3s
+  sample 3 (t=0.8): fail [test-fail] 4s
+  sample 4 (t=0.8): fail [test-fail] 4s
+  -> pass@1=0  pass@5=0  (0/5 samples passed)
+
+=== split_sentences (src/library/extractive.rs) ===
+  sample 0 (t=0.2): fail [test-fail] 11s
+  sample 1 (t=0.8): fail [test-fail] 310s
+  sample 2 (t=0.8): fail [test-fail] 14s
+  sample 3 (t=0.8): fail [test-fail] 10s
+  sample 4 (t=0.8): fail [test-fail] 10s
+  -> pass@1=0  pass@5=0  (0/5 samples passed)
+
+=== parse_unary (src/hands/calc.rs) ===
+  sample 0 (t=0.2): fail [test-fail] 16s
+  sample 1 (t=0.8): fail [test-fail] 14s
+  sample 2 (t=0.8): fail [test-fail] 13s
+  sample 3 (t=0.8): fail [test-fail] 13s
+  sample 4 (t=0.8): fail [test-fail] 14s
+  -> pass@1=0  pass@5=0  (0/5 samples passed)
+
+================ SUMMARY ================
+model=qwen3:1.7b  k=5
+fn                     pass@1 pass@5 samples
+parse_verdict               0      0 0/5
+evidence_text               0      0 0/5
+split_sentences             0      0 0/5
+parse_unary                 0      0 0/5
+
+pass@1 total: 0/4
+pass@5 total: 0/4  <- coverage / STaR-bootstrap signal
