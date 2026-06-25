@@ -1,0 +1,152 @@
+{
+  "model": "qwen3:0.6b",
+  "questions": 14,
+  "variants": {
+    "METIS": {
+      "rows": [
+        {
+          "q": "What is the maximum resident model memory the Zephyrian Protocol allows?",
+          "kind": "answerable",
+          "path": "extractive",
+          "label": "correct",
+          "ok": true,
+          "latency_s": 0.4,
+          "answer": "Resident model memory must not exceed 1.84 GB"
+        },
+        {
+          "q": "How many knowledge shards may be cached in RAM at one time under the Zephyrian Protocol?",
+          "kind": "answerable",
+          "path": "extractive",
+          "label": "correct",
+          "ok": true,
+          "latency_s": 0.06,
+          "answer": "Exactly 3 knowledge shards may be cached in RAM at any time"
+        },
+        {
+          "q": "In what year was the Zephyrian Portability Protocol ratified?",
+          "kind": "answerable",
+          "path": "extractive",
+          "label": "correct",
+          "ok": true,
+          "latency_s": 0.06,
+          "answer": "The Zephyrian Portability Protocol (ZPP) The Zephyrian Portability Protocol, ratified in 2031 by the Edge Compute Consortium, defines how \"portable reasoners\" must behave on constrained hardware"
+        },
+        {
+          "q": "Who ratified the Zephyrian Portability Protocol?",
+          "kind": "answerable",
+          "path": "extractive",
+          "label": "correct",
+          "ok": true,
+          "latency_s": 0.06,
+          "answer": "The Zephyrian Portability Protocol (ZPP) The Zephyrian Portability Protocol, ratified in 2031 by the Edge Compute Consortium, defines how \"portable reasoners\" must behave on constrained hardware"
+        },
+        {
+          "q": "What is the codename of the Zephyrian reference implementation?",
+          "kind": "answerable",
+          "path": "verified",
+          "label": "correct",
+          "ok": true,
+          "latency_s": 1.64,
+          "answer": "[1] (zephyr.md) # The Zephyrian Portability Protocol (ZPP) The Zephyrian reference implementation is codenamed \"Marlowe\" and targets 4 GB / 4 vCPU machines."
+        },
+        {
+          "q": "What hardware does the Zephyrian reference implementation target?",
+          "kind": "answerable",
+          "path": "verified",
+          "label": "correct",
+          "ok": true,
+          "latency_s": 0.44,
+          "answer": "The Zephyrian reference implementation targets 4 GB / 4 vCPU machines [1]."
+        },
+        {
+          "q": "What is the Zephyrian Protocol's mascot?",
+          "kind": "answerable",
+          "path": "verified",
+          "label": "correct",
+          "ok": true,
+          "latency_s": 0.43,
+          "answer": "The mascot of the Zephyrian Protocol is a blue heron named Pippa. [1]"
+        },
+        {
+          "q": "What must every factual answer carry under the Zephyrian Protocol?",
+          "kind": "answerable",
+          "path": "verified",
+          "label": "correct",
+          "ok": true,
+          "latency_s": 0.51,
+          "answer": "Every factual answer must carry a provenance tag pointing to its source shard. [1]"
+        },
+        {
+          "q": "Who is the current chairperson of the Edge Compute Consortium?",
+          "kind": "unanswerable",
+          "path": "abstained",
+          "label": "abstained",
+          "ok": true,
+          "latency_s": 1.19,
+          "answer": "I don't have support for a confident answer to that in my knowledge base, so I'd rather not guess."
+        },
+        {
+          "q": "In which city is the Edge Compute Consortium headquartered?",
+          "kind": "unanswerable",
+          "path": "unverifiable",
+          "label": "FABRICATED",
+          "ok": false,
+          "latency_s": 0.29,
+          "answer": "The Edge Compute Consortium is headquartered in **San Francisco, California**."
+        },
+        {
+          "q": "What programming language is the Marlowe reference implementation written in?",
+          "kind": "unanswerable",
+          "path": "abstained",
+          "label": "abstained",
+          "ok": true,
+          "latency_s": 1.21,
+          "answer": "I don't have support for a confident answer to that in my knowledge base, so I'd rather not guess."
+        },
+        {
+          "q": "How much does Zephyrian Protocol certification cost?",
+          "kind": "unanswerable",
+          "path": "abstained",
+          "label": "abstained",
+          "ok": true,
+          "latency_s": 1.22,
+          "answer": "I don't have support for a confident answer to that in my knowledge base, so I'd rather not guess."
+        },
+        {
+          "q": "What is the capital of France?",
+          "kind": "general",
+          "path": "unverifiable",
+          "label": "correct",
+          "ok": true,
+          "latency_s": 0.17,
+          "answer": "The capital of France is Paris."
+        },
+        {
+          "q": "What is 84937 * 2261? Give only the number.",
+          "kind": "general",
+          "path": "unverifiable",
+          "label": "correct",
+          "ok": true,
+          "latency_s": 0.49,
+          "answer": "192042557"
+        }
+      ],
+      "summary": {
+        "answerable": [
+          8,
+          8
+        ],
+        "unanswerable": [
+          3,
+          4
+        ],
+        "general": [
+          2,
+          2
+        ],
+        "fabrications": 1,
+        "avg_latency_s": 0.58
+      }
+    }
+  }
+}

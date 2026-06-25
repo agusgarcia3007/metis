@@ -22,3 +22,4 @@ pub mod hands;
 pub mod kernel;
 pub mod library;
 pub mod nano;
+pub mod verifier;

@@ -2,10 +2,14 @@ name: metis
 
 # Deploy Metis (Rust) on a small box (tuned for ~4 GB RAM / 4 vCPU).
 #
-#   docker compose up -d --build         # starts ollama + metis (first run pulls ~1.5 GB of models)
-#   docker compose run --rm metis index /app/docs   # build the Library from mounted docs
-#   docker compose restart metis                     # serve picks up the new Library
+#   docker compose up -d --build         # starts ollama + nli + metis
+#   docker compose run --rm metis index /app/docs   # build the Library
+#   docker compose restart metis                     # pick up new Library
 #   curl -s localhost:8080/ask -d '{"q":"..."}'      # ask the HTTP API
+#
+# Phase 2 cascade (E2): METIS_MODEL=qwen3:0.6b + METIS_NLI_URL=http://nli:9090
+#   The NLI sidecar (22M params, ~85MB RAM) verifies claims instead of the generator.
+#   Set METIS_MODEL and METIS_NLI_URL below to enable. See docs/design/08-phase2-cascade.md.
 #
 # Put your own .md/.txt files in ./sample-docs (mounted read-only at /app/docs).
 
@@ -16,11 +20,11 @@ services:
     volumes:
       - ollama-models:/root/.ollama
     environment:
-      - OLLAMA_KEEP_ALIVE=-1         # keep the Cortex pinned in RAM (no 82s cold reloads)
-      - OLLAMA_MAX_LOADED_MODELS=2   # Cortex + tiny embedder fit together
-      - OLLAMA_KV_CACHE_TYPE=q8_0    # halve KV-cache RAM so Qwen3-4B fits a 4 GB box
+      - OLLAMA_KEEP_ALIVE=-1          # keep the Cortex pinned in RAM (no cold reloads)
+      - OLLAMA_MAX_LOADED_MODELS=2    # generator + embedder fit together
+      - OLLAMA_KV_CACHE_TYPE=q8_0    # halve KV-cache RAM
       - OLLAMA_CONTEXT_LENGTH=2048   # smaller context = less KV RAM (plenty for RAG)
-    mem_limit: 3500m                 # Qwen3-4B Q4 (~2.5 GB) + KV + runtime; tight on a strict 4 GB box
+    mem_limit: 3500m
     healthcheck:
       test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
       interval: 10s
@@ -28,23 +32,45 @@ services:
       retries: 18
       start_period: 20s
 
+  # Phase 2: NLI sidecar — cross-encoder/nli-MiniLM-L-6-v2 (22M params, ~85MB).
+  # Remove this service (and METIS_NLI_URL below) to revert to Phase 1 / E0 baseline.
+  nli:
+    build: nli/
+    restart: unless-stopped
+    mem_limit: 256m     # 22M model + Python runtime; tiny
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:9090/healthz')"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
   metis:
     build: .
     restart: unless-stopped
     depends_on:
       ollama:
         condition: service_healthy
+      nli:
+        condition: service_healthy
     environment:
       - OLLAMA_HOST=http://ollama:11434
-      - METIS_MODEL=qwen3:4b         # ~GPT-4o-mini-class reasoning, fits 4 GB; set qwen3:1.7b for speed
+      # --- Phase 2 (E2 cascade): 0.6B generator + 22M NLI verifier ---
+      - METIS_MODEL=qwen3:0.6b
+      - METIS_NLI_URL=http://nli:9090
+      # --- Phase 1 / E0 baseline: uncomment below and comment out E2 lines above ---
+      # - METIS_MODEL=qwen3:1.7b
+      # (leave METIS_NLI_URL unset to use the LLM as verifier)
       - PORT=8080
-      - METIS_INDEX_DIR=/app/docs    # auto-build the Library from mounted docs on startup
+      - METIS_SEARCH=3
+      - METIS_INDEX_DIR=/app/docs
     ports:
       - "8080:8080"
-    mem_limit: 384m                  # metis is a thin Rust control plane
+    mem_limit: 384m
     volumes:
-      - metis-lib:/app/library       # the swappable knowledge index (persisted)
-      - ./sample-docs:/app/docs:ro   # your documents, mounted read-only
+      - metis-lib:/app/library
+      - ./sample-docs:/app/docs:ro
 
 volumes:
   ollama-models:

@@ -19,6 +19,7 @@ use metis_0::conductor::{self, GvsConfig};
 use metis_0::hands;
 use metis_0::kernel::{Kernel, Message, OllamaKernel, Tool};
 use metis_0::library::{self, Chunk, Embedder, Extraction, Hit, Store};
+use metis_0::verifier::VerifierKind;
 use serde_json::json;
 
 const DEFAULT_MODEL: &str = "qwen3:4b";
@@ -152,11 +153,17 @@ fn tools() -> Vec<Tool> {
 }
 
 /// gvsConfig builds the Generate·Verify·Search settings, overridable from the environment.
-///   METIS_SEARCH = total candidates the loop may try (1 = verify-only, no search). Default 3.
+///   METIS_SEARCH    = total candidates the loop may try (1 = verify-only, no search). Default 3.
+///   METIS_NLI_URL   = URL of the NLI sidecar (e.g. http://nli:9090). Unset → LLM judge.
 fn gvs_config() -> GvsConfig {
     let mut c = GvsConfig::default();
     if let Ok(n) = std::env::var("METIS_SEARCH").unwrap_or_default().parse::<u32>() {
         c.max_candidates = n.max(1);
+    }
+    if let Ok(url) = std::env::var("METIS_NLI_URL") {
+        if !url.trim().is_empty() {
+            c.verifier = VerifierKind::Nli { url };
+        }
     }
     c
 }
