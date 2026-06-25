@@ -29,6 +29,63 @@ pub fn split_sentences(text: &str) -> Vec<String> {
     out
 }
 
+/// needs_reasoning returns true when a question cannot be answered by copying a single sentence —
+/// it requires comparison, aggregation, a superlative, or chaining facts across chunks. For these,
+/// the extractive fast-path is a trap: a sentence that merely *mentions* the entities scores high on
+/// cosine similarity but does not actually *answer* the question (e.g. "which is larger, A or B?"
+/// matches the sentence describing A without performing the comparison). Such questions must go
+/// through Generate·Verify·Search so the model reasons and the answer is verified. This is a
+/// high-precision guard: it only suppresses the fast-path when a reasoning marker is clearly present,
+/// so genuine single-fact lookups keep their ~0.1s path.
+pub fn needs_reasoning(query: &str) -> bool {
+    // Normalize: lowercase, punctuation → spaces, collapse runs. This makes " strictest " match even
+    // when the source was "strictest?" (the trailing "?" would otherwise defeat the space-bounded check).
+    let lower = query.to_lowercase();
+    let cleaned: String = lower
+        .chars()
+        .map(|c| if c.is_alphanumeric() { c } else { ' ' })
+        .collect();
+    let q = format!(" {} ", cleaned.split_whitespace().collect::<Vec<_>>().join(" "));
+
+    // Comparison / superlative adjectives (chained as " word ") — these demand reasoning over ≥2 facts.
+    const COMPARATIVES: &[&str] = &[
+        "larger", "largest", "smaller", "smallest", "bigger", "biggest", "greater", "greatest",
+        "higher", "highest", "lower", "lowest", "longer", "longest", "shorter", "shortest",
+        "more", "most", "less", "least", "fewer", "fewest", "older", "oldest", "newer", "newest",
+        "better", "best", "worse", "worst", "strictest", "strict", "loosest",
+    ];
+    for w in COMPARATIVES {
+        if q.contains(&format!(" {w} ")) {
+            return true;
+        }
+    }
+
+    // Aggregation / arithmetic phrases.
+    const AGGREGATIONS: &[&str] = &[
+        "combined", "together", "in total", "total memory", "sum of", "difference between",
+        "average", "percent", " than ", "compared to", "between ",
+    ];
+    for p in AGGREGATIONS {
+        if q.contains(p) {
+            return true;
+        }
+    }
+
+    // Multi-hop relational structure: the question pivots on one entity to ask about another
+    // ("the group that maintains X", "the component codenamed Y", "whose group is chaired by Z").
+    const RELATIONAL: &[&str] = &[
+        "maintained by", "that maintains", "responsible for", "whose ", " codenamed ",
+        "chaired by", "that is chaired",
+    ];
+    for p in RELATIONAL {
+        if q.contains(p) {
+            return true;
+        }
+    }
+
+    false
+}
+
 /// Extraction is the best sentence-level answer found in the retrieved hits.
 #[derive(Clone, Debug, Default)]
 pub struct Extraction {
@@ -88,6 +145,25 @@ mod tests {
         // carry the full "1.84 GB" figure (regression guard for the sentence-splitter bug).
         assert!(s.iter().any(|x| x.contains("1.84 GB")), "decimal was severed: {s:?}");
         assert!(!s.iter().any(|x| x.ends_with(" 1")), "span truncated at a decimal: {s:?}");
+    }
+
+    #[test]
+    fn needs_reasoning_flags_reasoning_questions() {
+        // Comparison / superlative / aggregation / multi-hop → must skip the fast-path.
+        assert!(needs_reasoning("Which has a larger memory budget, Aster or Quill?"));
+        assert!(needs_reasoning("Which component has the smallest memory budget?"));
+        assert!(needs_reasoning("Which conformance tier is the strictest?"));
+        assert!(needs_reasoning("Combined, how much memory do Quill and Tideway use?"));
+        assert!(needs_reasoning("Between the glass marmot and the veil moth, which lives longer?"));
+        assert!(needs_reasoning("Who chairs the working group that maintains the Lumen component?"));
+        assert!(needs_reasoning("What is the memory budget of the component codenamed Curlew?"));
+
+        // Genuine single-fact lookups → keep the fast-path.
+        assert!(!needs_reasoning("What is the memory budget of the Lumen component?"));
+        assert!(!needs_reasoning("What is the codename of the Aster component?"));
+        assert!(!needs_reasoning("How many eggs does the ashfoot heron lay each season?"));
+        assert!(!needs_reasoning("In which city is the Orrery Foundation chartered?"));
+        assert!(!needs_reasoning("What is the wingspan of the veil moth?"));
     }
 
     #[test]

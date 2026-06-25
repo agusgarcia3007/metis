@@ -3,7 +3,7 @@
 //! time — knowledge-as-data: move facts OUT of the weights into data on disk.
 
 mod extractive;
-pub use extractive::{extract, split_sentences, Extraction};
+pub use extractive::{extract, needs_reasoning, split_sentences, Extraction};
 
 use serde::{Deserialize, Serialize};
 use std::fs::File;

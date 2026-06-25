@@ -103,3 +103,45 @@ Next levers, in order of expected payoff:
 
 The benchmark is still small (42 Q, 4 docs) but it now spans difficulty tiers and has already
 falsified the easy-benchmark conclusion — which is exactly what a good benchmark is for.
+
+---
+
+## 6. Lever 1 shipped — the type-gate (measured)
+
+Implemented `library::needs_reasoning(query)` (`src/library/extractive.rs`): a high-precision,
+zero-cost guard that suppresses the fast-path when the question carries a comparison/superlative
+marker (`larger`, `smallest`, `strictest`, …), an aggregation marker (`combined`, `total`,
+`than`, `between`, …), or a multi-hop relational marker (`maintained by`, `codenamed`, `chaired
+by`, …). `try_extractive` returns `None` for those, so they go through Generate·Verify·Search.
+Genuine single-fact lookups keep the ~0.1 s path. Unit-tested both directions.
+
+Result on the 1.7B (default gate, fast-path ON but type-gated):
+
+| tier (max) | fp-ON (naive) | **type-gated** | fp-OFF (ceiling) |
+|---|---:|---:|---:|
+| 1 extractive (12) | 10 | 10 | 12 |
+| 2 synthesis (10) | 3 | **9** | 9 |
+| 3 multihop (8) | 6 | **7** | 7 |
+| 4 unanswerable (8) | 6 | 6 | 8 |
+| 5 general (4) | 4 | 4 | 4 |
+| **total OK /42** | 29 | **36** | 40 |
+| fabrications (↓) | 2 | 2 | 0 |
+| avg latency | 1.27 s | **1.53 s** | 1.8 s |
+
+The type-gate recovers **7 of the 11-point swing** — the entire synthesis loss (3→9) plus a
+multi-hop gain — while keeping fast-path latency on real lookups (1.53 s vs the 1.8 s of running
+GVS on everything). Raw data: `bench/results-hard-typegated.json`.
+
+The residual 4 points (36 vs the 40 ceiling) are **two narrower bugs the type-gate deliberately
+does not touch**, both rooted in the fast-path returning *without verification*:
+1. **Bad span selection on 2 genuine lookups** ("Who chairs the Tessera group?" → a truncated
+   span; "year v4 ratified?" → a section header). These are real single-fact questions, so the
+   guard correctly leaves them on the fast-path; the *extractor* picks a poor sentence. Fix belongs
+   in span selection, not the gate.
+2. **Fabrication on 2 unanswerable questions**: an absent fact ("treasurer of the Orrery
+   Foundation") still scores > 0.62 cosine against a topically-near sentence, and the fast-path
+   returns it, bypassing abstention. No keyword guard catches this — the question *looks* like a
+   lookup. The fix is a cheap confidence/verify check on fast-path answers, not more markers.
+
+So lever 1 is done and banked; the remaining gap is now two precisely-named, smaller problems
+rather than one big diffuse one.

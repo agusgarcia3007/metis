@@ -414,6 +414,14 @@ fn try_extractive(emb: &Embedder, hits: &[Hit], q: &str) -> Option<Extraction> {
     if hits.is_empty() {
         return None;
     }
+    // Type-gate (docs/design/09): the fast-path only answers single-fact lookups. Questions that
+    // need comparison, aggregation, a superlative, or cross-chunk chaining must go through GVS — a
+    // chunk that merely mentions the entities scores high on cosine but does NOT answer the question
+    // (and would bypass the verify gate, risking a fabrication). Measured: this recovers most of the
+    // quality the always-on fast-path was costing, while keeping the ~0.1s path for true lookups.
+    if library::needs_reasoning(q) {
+        return None;
+    }
     // Never extractive-shortcut WEB evidence: a snippet/title that echoes the query scores high but
     // is not the answer (e.g. a video title). Web hits must be synthesized and verified, not copied.
     if hits.iter().any(|h| h.chunk.source.starts_with("http")) {
