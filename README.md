@@ -94,6 +94,36 @@ Multi-turn memory, a `/think` toggle (model reasoning), relevance-gated citation
 sources), and native tool-calling. Swap the `library/` index → swap the assistant's entire knowledge,
 no retraining. Override the Cortex with `METIS_MODEL=...`.
 
+**Generate · Verify · Search (GVS) — reliability from a tiny model.** The Conductor
+(`src/conductor.rs`) never trusts a single generation: it generates a grounded answer, **verifies** it
+against the retrieved evidence with the same model in judge mode, **searches** a few diverse
+candidates if it fails, and **abstains** rather than emit an unverified claim. No datasets, no
+retraining — verifying is cheaper than generating, and a 1.7B is a reliable grounded *judge* even when
+it's a shaky generator.
+
+**The web as a verified Library — open-domain, still grounded.** Point Metis at a self-hosted SearXNG
+(`METIS_SEARCH_URL=...`) and the live web becomes "a Library too big to store": results flow through
+the *same* ground→verify→cite→abstain loop, so it answers questions far outside its local corpus
+**with citations**, and abstains when even the web doesn't support it. The binary stays TLS-free —
+SearXNG does the HTTPS.
+
+### Benchmark — same weights, architecture is the only difference
+
+`qwen3:1.7b` called bare (via ollama) vs the *same* model inside Metis, on a private corpus it never
+trained on (harness: `bench/benchmark.py`, full write-up: [`bench/RESULTS.md`](bench/RESULTS.md)):
+
+| metric | BARE | METIS |
+|---|---:|---:|
+| answerable facts correct | **0 / 8** | **8 / 8** |
+| fabrications on unanswerable (lower=better) | **4 / 4** | **0 / 4** |
+| general (incl. exact math via the calc tool) | 1 / 2 | **2 / 2** |
+
+The bare model invents facts and confidently fabricates answers that don't exist; the same model
+inside Metis answers grounded, cites, and refuses to guess. Reproduced identically on the live Railway
+deploy. The full engineering record — every production fix (KV segfault, CPU thread-thrash that tanked
+decode to 0.09 tok/s, the AMX segfault) and the architecture decisions — is in
+[`docs/design/07-implementation-and-deployment-log.md`](docs/design/07-implementation-and-deployment-log.md).
+
 ## The proven core: Retrieval-Native Training (RNT)
 
 The thesis mechanism is proven in miniature by a from-scratch, gradient-checked transformer
@@ -135,12 +165,17 @@ chat without Docker: `./target/release/metis chat`.
 
 ## Architecture & docs
 
-- **Design** — [`docs/design/`](docs/design/): the constraints, the architecture, the build plan, and
-  the training-system research log.
+- **Design** — [`docs/design/`](docs/design/): the constraints, the architecture, the build plan, the
+  GVS thesis, and the [implementation & deployment **log (the bitácora)**](docs/design/07-implementation-and-deployment-log.md) —
+  what got built, what we measured, and every production fix.
+- **Benchmark** — [`bench/`](bench/): the bare-vs-Metis harness (`benchmark.py`), the
+  [results write-up](bench/RESULTS.md), and the raw numbers (`results-*.json`).
 - **Research** — [`docs/research/`](docs/research/): twelve deep, sourced notes.
-- **Code** — `src/kernel` (Cortex backend), `src/library` (knowledge plane), `src/hands` (tools),
-  `src/nano` (from-scratch transformer + the RNT experiments), `src/bin/metis.rs` (the CLI),
-  `src/bin/rnt.rs` (the RNT experiment runner).
+- **Code** — `src/kernel` (Cortex backend), `src/library` (knowledge plane), `src/hands` (tools:
+  calc, clock, **web/SearXNG**), `src/conductor.rs` (the **GVS** loop), `src/nano` (from-scratch
+  transformer + the RNT experiments), `src/bin/metis.rs` (the CLI), `src/bin/rnt.rs` (RNT runner).
+- **Deploy** — single-container Railway image (`Dockerfile.railway`) + SearXNG sidecar (`searxng/`);
+  see the log for the topology and the hard-won CPU-stability env.
 
 ```sh
 cargo test                       # engine gradient-check, library, tools — all green
