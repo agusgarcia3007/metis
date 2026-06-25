@@ -1,6 +1,9 @@
 <h1 align="center">Μῆτις · Metis <sub>(Rust)</sub></h1>
 <p align="center"><b>Frontier-grade intelligence that fits where frontier models can't.</b></p>
 <p align="center"><i>Win by cunning, not by size.</i></p>
+<p align="center">
+  <a href="https://metis-web-production-1852.up.railway.app"><b>metis-web-production-1852.up.railway.app</b></a>
+</p>
 
 ---
 
