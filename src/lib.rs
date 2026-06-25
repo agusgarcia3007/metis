@@ -17,6 +17,7 @@
     clippy::excessive_precision
 )]
 
+pub mod conductor;
 pub mod hands;
 pub mod kernel;
 pub mod library;

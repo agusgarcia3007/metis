@@ -3,6 +3,8 @@
 
 mod calc;
 mod clock;
+pub mod web;
 
 pub use calc::calc;
 pub use clock::now;
+pub use web::{search as web_search, WebResult};

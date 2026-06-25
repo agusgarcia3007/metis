@@ -52,6 +52,20 @@ impl OllamaKernel {
         }
     }
 
+    /// build the ollama `options` object. We cap the thread count when METIS_NUM_THREAD is set:
+    /// on a shared PaaS, llama.cpp otherwise spawns one thread per *host* core while the container's
+    /// CPU quota is a fraction of that — fine for batched prefill, catastrophic for the per-token
+    /// barrier sync in decode. Pinning threads to the real vCPU allocation fixes the decode collapse.
+    fn options(&self, temperature: f32) -> Value {
+        let mut o = json!({ "temperature": temperature });
+        if let Ok(n) = std::env::var("METIS_NUM_THREAD").unwrap_or_default().parse::<i64>() {
+            if n > 0 {
+                o["num_thread"] = json!(n);
+            }
+        }
+        o
+    }
+
     /// Available reports whether the ollama server is reachable.
     pub fn available(&self) -> bool {
         let resp = self
@@ -74,7 +88,7 @@ impl OllamaKernel {
             "messages": msgs,
             "stream": true,
             "think": self.think,
-            "options": { "temperature": temperature },
+            "options": self.options(temperature),
         });
         let resp = self
             .agent
@@ -135,7 +149,7 @@ impl OllamaKernel {
         msgs: &[Message],
         temperature: f32,
         tools: &[Tool],
-        mut on_event: Option<&mut dyn FnMut(&str)>,
+        mut on_event: Option<&mut (dyn FnMut(&str) + '_)>,
     ) -> Result<String, String> {
         let mut tool_spec: Vec<Value> = Vec::with_capacity(tools.len());
         let mut by_name: HashMap<&str, &Tool> = HashMap::new();
@@ -155,7 +169,7 @@ impl OllamaKernel {
             let req_body = json!({
                 "model": self.model, "messages": raw, "tools": tool_spec,
                 "stream": false, "think": self.think,
-                "options": { "temperature": temperature },
+                "options": self.options(temperature),
             });
             let resp = self
                 .agent

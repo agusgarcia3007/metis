@@ -1,0 +1,46 @@
+# syntax=docker/dockerfile:1
+#
+# Single-service Railway image: the ollama Cortex backend + the Metis control plane in ONE
+# container. (The repo's main Dockerfile + docker-compose split them into two services; Railway
+# is simplest as one service, so we bundle them here and talk over localhost.)
+#
+#   build:  static musl metis binary (pure-Rust http — no openssl/cgo)
+#   final:  FROM ollama/ollama, drop the metis binary in, run both via the entrypoint
+
+# ---- build the metis binary ----
+FROM rust:1.89-alpine AS build
+RUN apk add --no-cache musl-dev
+WORKDIR /src
+COPY Cargo.toml Cargo.lock ./
+COPY src ./src
+RUN cargo build --locked --release --bin metis
+
+# ---- runtime: ollama image already ships the inference server ----
+FROM ollama/ollama:latest
+COPY --from=build /src/target/release/metis /usr/local/bin/metis
+COPY sample-docs /app/docs
+COPY entrypoint.railway.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# NOTE: deliberately DO NOT set OLLAMA_HOST. In a single container, `ollama serve` reads it as its
+# bind address while metis reads it as the target URL — setting it breaks one of them. Unset, ollama
+# binds 127.0.0.1:11434 and metis defaults to the same. They meet on localhost.
+ENV METIS_MODEL=qwen3:1.7b \
+    METIS_INDEX_DIR=/app/docs \
+    METIS_SEARCH=2 \
+    METIS_NUM_THREAD=4 \
+    OLLAMA_KEEP_ALIVE=-1 \
+    OLLAMA_CONTEXT_LENGTH=2048 \
+    OLLAMA_FLASH_ATTENTION=0 \
+    OLLAMA_LLM_LIBRARY=cpu_avx2 \
+    PORT=8080
+# Hard-won CPU-stability notes for a shared PaaS box:
+#  - NO OLLAMA_KV_CACHE_TYPE=q8_0: quantized KV needs flash-attention; without it llama-server
+#    segfaults. Default f16 KV at ctx 2048 is only ~240 MiB anyway.
+#  - OLLAMA_FLASH_ATTENTION=0 + OLLAMA_LLM_LIBRARY=cpu_avx2: some Railway hosts are Intel Sapphire
+#    Rapids with AMX, and ollama's AMX/flash-attn codepath segfaults loading qwen3 there. Forcing
+#    the plain AVX2 backend trades a little speed for not crashing. (METIS_NUM_THREAD caps llama.cpp
+#    threads to the container's CPU quota — without it, decode collapses to ~0.1 tok/s.)
+# Persist /root/.ollama on a Railway volume so the model isn't re-pulled (and re-risked) every deploy.
+EXPOSE 8080
+ENTRYPOINT ["/entrypoint.sh"]

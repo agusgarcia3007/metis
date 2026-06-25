@@ -1,0 +1,22 @@
+# SearXNG settings for Metis — the sovereign "web as a Library" backend.
+# Enables the JSON API (off by default) so Metis can read results over plain HTTP, and relaxes the
+# bot limiter so the local Metis process isn't blocked. Run it next to Metis; Metis talks HTTP to it
+# and it does the HTTPS to the upstream engines — so the Metis binary stays TLS-free.
+use_default_settings: true
+
+server:
+  bind_address: "::"      # IPv6 ALL — required for Railway's private network (0.0.0.0 isn't reachable)
+  port: 8080
+  secret_key: "change-me-in-prod"
+  limiter: false          # don't rate-limit our own local caller
+  image_proxy: false
+
+search:
+  safe_search: 0
+  formats:
+    - html
+    - json                # <-- the line that makes the JSON API work (Metis needs this)
+
+engines:
+  - name: wikipedia
+    disabled: false

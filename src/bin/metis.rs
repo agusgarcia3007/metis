@@ -15,9 +15,10 @@ use std::io::Write;
 use std::path::Path;
 use std::time::Duration;
 
+use metis_0::conductor::{self, GvsConfig};
 use metis_0::hands;
 use metis_0::kernel::{Kernel, Message, OllamaKernel, Tool};
-use metis_0::library::{self, Embedder, Extraction, Hit, Store};
+use metis_0::library::{self, Chunk, Embedder, Extraction, Hit, Store};
 use serde_json::json;
 
 const DEFAULT_MODEL: &str = "qwen3:4b";
@@ -150,6 +151,16 @@ fn tools() -> Vec<Tool> {
     vec![calc_tool(), clock_tool()]
 }
 
+/// gvsConfig builds the Generate·Verify·Search settings, overridable from the environment.
+///   METIS_SEARCH = total candidates the loop may try (1 = verify-only, no search). Default 3.
+fn gvs_config() -> GvsConfig {
+    let mut c = GvsConfig::default();
+    if let Ok(n) = std::env::var("METIS_SEARCH").unwrap_or_default().parse::<u32>() {
+        c.max_candidates = n.max(1);
+    }
+    c
+}
+
 // ---- Library (index) ----
 
 fn run_index(paths: &[String]) {
@@ -276,6 +287,91 @@ fn ground(store: &Option<Store>, emb: &Embedder, question: &str) -> (String, Vec
     (rag_system(&b), hits)
 }
 
+/// webSearchUrl returns the SearXNG base URL if web augmentation is enabled (METIS_SEARCH_URL).
+fn web_search_url() -> Option<String> {
+    match std::env::var("METIS_SEARCH_URL") {
+        Ok(u) if !u.trim().is_empty() => Some(u),
+        _ => None,
+    }
+}
+
+/// webEvidence queries the live web (SearXNG) and ranks the results against the query with the same
+/// CPU embedder used for the local Library, returning them as Hits — "the web as a Library".
+fn web_evidence(emb: &Embedder, q: &str) -> Vec<Hit> {
+    let base = match web_search_url() {
+        Some(u) => u,
+        None => return Vec::new(),
+    };
+    let results = match hands::web_search(&base, q, 8) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("web search failed: {e}");
+            return Vec::new();
+        }
+    };
+    if results.is_empty() {
+        return Vec::new();
+    }
+    // Embed query + each result's (title + snippet) in one batch; cosine = dot product (unit vecs).
+    let mut texts = Vec::with_capacity(results.len() + 1);
+    texts.push(q.to_string());
+    for r in &results {
+        texts.push(snippet_text(r));
+    }
+    let vecs = match emb.embed(&texts) {
+        Ok(v) if v.len() == texts.len() => v,
+        _ => return Vec::new(),
+    };
+    let qv = &vecs[0];
+    let mut hits: Vec<Hit> = results
+        .iter()
+        .enumerate()
+        .map(|(i, r)| {
+            let v = &vecs[i + 1];
+            let score: f32 = qv.iter().zip(v).map(|(a, b)| a * b).sum();
+            Hit {
+                chunk: Chunk { text: snippet_text(r), source: r.url.clone(), idx: i, vec: v.clone() },
+                score,
+            }
+        })
+        .collect();
+    hits.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+    hits
+}
+
+fn snippet_text(r: &hands::WebResult) -> String {
+    if r.content.trim().is_empty() {
+        r.title.clone()
+    } else {
+        format!("{} — {}", r.title.trim(), r.content.trim())
+    }
+}
+
+/// research grounds a query in the local Library AND, when the local match is thin and web search is
+/// enabled, the live web (SearXNG). Web results are just more evidence: the same GVS loop verifies,
+/// cites, and abstains over the combined set — so a tiny Cortex answers open-domain questions
+/// without ever trusting the web raw. This is "the web as a swappable Library".
+fn research(store: &Option<Store>, emb: &Embedder, q: &str) -> (String, Vec<Hit>) {
+    let (sys, mut hits) = ground(store, emb, q);
+    // Strong local grounding wins outright; only reach for the web when the Library is thin.
+    let local_strong = hits.first().map(|h| h.score >= 0.55).unwrap_or(false);
+    if local_strong || web_search_url().is_none() {
+        return (sys, hits);
+    }
+    let web = web_evidence(emb, q);
+    if web.is_empty() {
+        return (sys, hits);
+    }
+    hits.extend(web);
+    hits.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+    hits.truncate(TOP_K + 2); // a little more room when blending local + web
+    let mut b = String::new();
+    for (i, h) in hits.iter().enumerate() {
+        b.push_str(&format!("[{}] ({}) {}\n", i + 1, h.chunk.source, h.chunk.text.trim()));
+    }
+    (rag_system(&b), hits)
+}
+
 fn print_sources(hits: &[Hit]) {
     if hits.is_empty() {
         return;
@@ -300,6 +396,11 @@ const EXTRACT_GATE: f32 = 0.62;
 /// tryExtractive returns a confident extractive answer (fast path) or None to fall back to the LLM.
 fn try_extractive(emb: &Embedder, hits: &[Hit], q: &str) -> Option<Extraction> {
     if hits.is_empty() {
+        return None;
+    }
+    // Never extractive-shortcut WEB evidence: a snippet/title that echoes the query scores high but
+    // is not the answer (e.g. a video title). Web hits must be synthesized and verified, not copied.
+    if hits.iter().any(|h| h.chunk.source.starts_with("http")) {
         return None;
     }
     match library::extract(emb, hits, q) {
@@ -357,7 +458,7 @@ fn run_ask(question: &str) {
     }
     let emb = Embedder::new(EMBED_MODEL, &ollama_host());
     let store = load_library();
-    let (sys, hits) = ground(&store, &emb, question);
+    let (sys, hits) = research(&store, &emb, question);
 
     // CASCADE fast path: a confident extractive lookup answers in ~ms, skipping the LLM entirely.
     if let Some(ex) = try_extractive(&emb, &hits, question) {
@@ -370,16 +471,15 @@ fn run_ask(question: &str) {
         Message { role: "system".to_string(), content: sys },
         Message { role: "user".to_string(), content: question.to_string() },
     ];
-    let reply = k.chat_tools(
-        &msgs,
-        0.4,
-        &tools(),
-        Some(&mut |ev: &str| println!("  \x1b[2m[tool] {ev}\x1b[0m")),
-    );
-    match reply {
-        Ok(r) => {
-            println!("{}", r.trim());
-            print_sources(&hits);
+    // Generate · Verify · Search: generate, verify against evidence, search if it fails, abstain if nothing holds.
+    let tl = tools();
+    let mut printer = |ev: &str| println!("  \x1b[2m[{ev}]\x1b[0m");
+    match conductor::answer(&k, &msgs, &hits, &tl, &gvs_config(), Some(&mut printer)) {
+        Ok(a) => {
+            println!("{}", a.text.trim());
+            if a.route != conductor::Route::Abstained {
+                print_sources(&hits);
+            }
         }
         Err(e) => {
             eprintln!("error: {e}");
@@ -438,7 +538,7 @@ fn chat() {
             _ => {}
         }
 
-        let (sys, hits) = ground(&store, &emb, &input);
+        let (sys, hits) = research(&store, &emb, &input);
         // cascade fast path: a confident extractive lookup answers instantly, no LLM
         if let Some(ex) = try_extractive(&emb, &hits, &input) {
             println!("\nmetis> {}\n\x1b[2msources: [{}] ({:.2}, extractive)\x1b[0m", ex.answer, ex.source, ex.score);
@@ -452,18 +552,15 @@ fn chat() {
         msgs.extend(history.iter().cloned());
         msgs.push(Message { role: "user".to_string(), content: input.clone() });
 
-        let reply = k.chat_tools(
-            &msgs,
-            0.2,
-            &tools,
-            Some(&mut |ev: &str| println!("  \x1b[2m[tool] {ev}\x1b[0m")),
-        );
-        match reply {
-            Ok(r) => {
-                println!("\nmetis> {}", r.trim());
-                print_sources(&hits);
+        let mut printer = |ev: &str| println!("  \x1b[2m[{ev}]\x1b[0m");
+        match conductor::answer(&k, &msgs, &hits, &tools, &gvs_config(), Some(&mut printer)) {
+            Ok(a) => {
+                println!("\nmetis> {}", a.text.trim());
+                if a.route != conductor::Route::Abstained {
+                    print_sources(&hits);
+                }
                 history.push(Message { role: "user".to_string(), content: input.clone() });
-                history.push(Message { role: "assistant".to_string(), content: r });
+                history.push(Message { role: "assistant".to_string(), content: a.text });
             }
             Err(e) => eprintln!("error: {e}"),
         }
@@ -531,7 +628,7 @@ fn serve() {
                     continue;
                 }
                 k.think = parsed["think"].as_bool().unwrap_or(false);
-                let (sys, hits) = ground(&store, &emb, &q);
+                let (sys, hits) = research(&store, &emb, &q);
 
                 // cascade fast path: confident extractive lookup, no LLM
                 if let Some(ex) = try_extractive(&emb, &hits, &q) {
@@ -549,16 +646,23 @@ fn serve() {
                     Message { role: "system".to_string(), content: sys },
                     Message { role: "user".to_string(), content: q.clone() },
                 ];
-                match k.chat_tools(&msgs, 0.3, &tools(), None) {
-                    Ok(answer) => {
-                        let sources: Vec<serde_json::Value> = hits
-                            .iter()
-                            .enumerate()
-                            .map(|(i, h)| json!({ "n": i + 1, "source": h.chunk.source, "score": h.score }))
-                            .collect();
+                let tl = tools();
+                match conductor::answer(&k, &msgs, &hits, &tl, &gvs_config(), None) {
+                    Ok(a) => {
+                        // Abstained answers cite nothing — they are explicitly *not* grounded.
+                        let sources: Vec<serde_json::Value> = if a.route == conductor::Route::Abstained {
+                            Vec::new()
+                        } else {
+                            hits.iter()
+                                .enumerate()
+                                .map(|(i, h)| json!({ "n": i + 1, "source": h.chunk.source, "score": h.score }))
+                                .collect()
+                        };
                         let body = json!({
-                            "answer": answer.trim(),
-                            "path": "generative",
+                            "answer": a.text.trim(),
+                            "path": a.route.as_str(),
+                            "verified": a.verdict == Some(conductor::Verdict::Supported),
+                            "attempts": a.attempts,
                             "sources": sources,
                         });
                         let resp = tiny_http::Response::from_string(body.to_string())

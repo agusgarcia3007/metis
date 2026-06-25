@@ -8,7 +8,10 @@ use std::sync::OnceLock;
 
 fn sentence_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"(?:[.!?:;]|\n)+\s*").unwrap())
+    // Split on sentence punctuation ONLY when followed by whitespace (or a newline run). This
+    // protects decimals like "1.84" — the dot there has no trailing space, so the number stays
+    // intact instead of being severed into "1" and "84 GB".
+    RE.get_or_init(|| Regex::new(r"(?:[.!?:;]\s+|\n+)").unwrap())
 }
 
 /// SplitSentences breaks text into candidate answer spans (sentences/clauses), dropping trivia.
@@ -81,6 +84,10 @@ mod tests {
         for x in &s {
             assert!(!x.is_empty(), "empty span");
         }
+        // The decimal must survive intact — no span may end at a bare "1", and one span must
+        // carry the full "1.84 GB" figure (regression guard for the sentence-splitter bug).
+        assert!(s.iter().any(|x| x.contains("1.84 GB")), "decimal was severed: {s:?}");
+        assert!(!s.iter().any(|x| x.ends_with(" 1")), "span truncated at a decimal: {s:?}");
     }
 
     #[test]
