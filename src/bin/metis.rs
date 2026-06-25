@@ -398,7 +398,16 @@ fn load_library() -> Option<Store> {
 }
 
 /// extractGate is the cosine threshold above which the extractive fast path is trusted.
-const EXTRACT_GATE: f32 = 0.62;
+/// Overridable via METIS_EXTRACT_GATE — set it above 1.0 to disable the fast path entirely
+/// (every query then goes through Generate·Verify·Search). Default 0.62.
+const EXTRACT_GATE_DEFAULT: f32 = 0.62;
+
+fn extract_gate() -> f32 {
+    std::env::var("METIS_EXTRACT_GATE")
+        .ok()
+        .and_then(|s| s.parse::<f32>().ok())
+        .unwrap_or(EXTRACT_GATE_DEFAULT)
+}
 
 /// tryExtractive returns a confident extractive answer (fast path) or None to fall back to the LLM.
 fn try_extractive(emb: &Embedder, hits: &[Hit], q: &str) -> Option<Extraction> {
@@ -411,7 +420,7 @@ fn try_extractive(emb: &Embedder, hits: &[Hit], q: &str) -> Option<Extraction> {
         return None;
     }
     match library::extract(emb, hits, q) {
-        Ok(ex) if ex.score >= EXTRACT_GATE => Some(ex),
+        Ok(ex) if ex.score >= extract_gate() => Some(ex),
         _ => None,
     }
 }

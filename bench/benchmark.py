@@ -41,6 +41,10 @@ TIMEOUT = int(os.environ.get("BENCH_TIMEOUT", "300"))
 _variants_json = os.environ.get("METIS_VARIANTS", "")
 VARIANTS = json.loads(_variants_json) if _variants_json else [{"name": "METIS", "url": METIS_URL}]
 
+# Question set: load from BENCH_QUESTIONS file (a JSON array) if set, else use the built-in set.
+# A loaded question may carry a "tier" field for per-difficulty breakdown.
+_questions_file = os.environ.get("BENCH_QUESTIONS", "")
+
 BARE_SYSTEM = (
     "You are a helpful, accurate assistant. Answer concisely. "
     "If you do not know the answer or are not certain, say so plainly instead of guessing."
@@ -69,6 +73,11 @@ QUESTIONS = [
     {"q": "What is the capital of France?",                                                       "kind": "general", "any": ["paris"]},
     {"q": "What is 84937 * 2261? Give only the number.",                                          "kind": "general", "any": ["192042557"]},
 ]
+
+if _questions_file:
+    with open(_questions_file) as _f:
+        QUESTIONS = json.load(_f)
+    print(f"loaded {len(QUESTIONS)} questions from {_questions_file}")
 
 ABSTAIN_RE = re.compile(
     r"(not (available|provided|in the|mentioned|found|specified|stated|listed|included))"
@@ -126,7 +135,8 @@ def score(kind, answer, spec):
 def run_system(name, asker):
     print(f"\n{'='*78}\n  {name}\n{'='*78}")
     rows, lat = [], []
-    agg = {}
+    agg = {}        # kind -> [ok, total]
+    tier_agg = {}   # tier -> [ok, total]
     for item in QUESTIONS:
         try:
             answer, dt, path = asker(item["q"])
@@ -137,15 +147,19 @@ def run_system(name, asker):
         agg.setdefault(item["kind"], [0, 0])
         agg[item["kind"]][0] += 1 if ok else 0
         agg[item["kind"]][1] += 1
-        rows.append({"q": item["q"], "kind": item["kind"], "path": path,
+        tier = item.get("tier", "-")
+        tier_agg.setdefault(tier, [0, 0])
+        tier_agg[tier][0] += 1 if ok else 0
+        tier_agg[tier][1] += 1
+        rows.append({"q": item["q"], "kind": item["kind"], "tier": tier, "path": path,
                      "label": label, "ok": ok, "latency_s": round(dt, 2), "answer": answer})
         flag = "✓" if ok else "✗"
-        snippet = answer.replace("\n", " ")[:88]
-        print(f"  {flag} [{item['kind']:<12}] ({path:<12} {dt:5.1f}s) {label:<11} | {snippet}")
-    return rows, agg, lat
+        snippet = answer.replace("\n", " ")[:80]
+        print(f"  {flag} [{tier:<14}] ({path:<12} {dt:5.1f}s) {label:<11} | {snippet}")
+    return rows, agg, lat, tier_agg
 
 
-def summary(name, agg, lat):
+def summary(name, agg, lat, tier_agg=None):
     ans = agg.get("answerable", [0, 0])
     una = agg.get("unanswerable", [0, 0])
     gen = agg.get("general", [0, 0])
@@ -155,8 +169,16 @@ def summary(name, agg, lat):
     print(f"    unanswerable abstain: {una[0]}/{una[1]}   (fabrications: {fabricated})")
     print(f"    general accuracy    : {gen[0]}/{gen[1]}")
     print(f"    avg latency         : {sum(lat)/max(len(lat),1):.1f}s")
+    tiers = {}
+    if tier_agg:
+        print(f"    --- by difficulty tier ---")
+        for tier in sorted(tier_agg):
+            ok, tot = tier_agg[tier]
+            print(f"      {tier:<16} {ok}/{tot}")
+            tiers[tier] = [ok, tot]
     return {"answerable": ans, "unanswerable": una, "general": gen,
-            "fabrications": fabricated, "avg_latency_s": round(sum(lat)/max(len(lat),1), 2)}
+            "fabrications": fabricated, "avg_latency_s": round(sum(lat)/max(len(lat),1), 2),
+            "tiers": tiers}
 
 
 def print_comparison(all_summaries):
@@ -183,6 +205,17 @@ def print_comparison(all_summaries):
     print(row("avg latency (s)",
               [str(s['avg_latency_s']) for s in sums]))
 
+    # per-tier comparison (only if tiers were tracked)
+    all_tiers = sorted({t for s in sums for t in s.get("tiers", {})})
+    if all_tiers:
+        print(f"  {'─'*28}" + ("─" * col * len(names)))
+        for tier in all_tiers:
+            vals = []
+            for s in sums:
+                tv = s.get("tiers", {}).get(tier)
+                vals.append(f"{tv[0]}/{tv[1]}" if tv else "-")
+            print(row(f"  {tier}", vals))
+
 
 def main():
     print(f"Metis benchmark — model={MODEL}")
@@ -190,20 +223,20 @@ def main():
     all_summaries = []
 
     if OLLAMA_URL:
-        rows, agg, lat = run_system(f"BARE Cortex ({MODEL} via ollama — no RAG, no verify)",
-                                    ask_bare)
-        s = summary("BARE", agg, lat)
+        rows, agg, lat, tier_agg = run_system(
+            f"BARE Cortex ({MODEL} via ollama — no RAG, no verify)", ask_bare)
+        s = summary("BARE", agg, lat, tier_agg)
         results["bare"] = {"rows": rows, "summary": s}
         all_summaries.append(("BARE", s))
 
     for variant in VARIANTS:
         vname = variant["name"]
         vurl  = variant["url"].rstrip("/")
-        rows, agg, lat = run_system(
+        rows, agg, lat, tier_agg = run_system(
             f"{vname}  ({vurl})",
             lambda q, u=vurl: ask_metis(u, q),
         )
-        s = summary(vname, agg, lat)
+        s = summary(vname, agg, lat, tier_agg)
         results.setdefault("variants", {})[vname] = {"rows": rows, "summary": s}
         all_summaries.append((vname, s))
 
