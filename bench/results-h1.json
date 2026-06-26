@@ -1,0 +1,17 @@
+{
+  "qwen3:0.6b": {
+    "g1": { "n_pos": 8, "n_neg": 8, "tp": 8, "tn": 3, "fab": 5, "over_abstain": 0, "pos_uncertain": 0, "neg_uncertain": 0, "tpr": 1.0000, "tnr": 0.3750, "fab_rate": 0.6250, "balanced_acc": 0.6875 },
+    "g2": { "n_pos": 8, "n_neg": 8, "tp": 6, "tn": 4, "fab": 4, "over_abstain": 2, "pos_uncertain": 0, "neg_uncertain": 0, "tpr": 0.7500, "tnr": 0.5000, "fab_rate": 0.5000, "balanced_acc": 0.6250 },
+    "g3": { "n_pos": 4, "n_neg": 4, "tp": 1, "tn": 3, "fab": 1, "over_abstain": 3, "pos_uncertain": 0, "neg_uncertain": 0, "tpr": 0.2500, "tnr": 0.7500, "fab_rate": 0.2500, "balanced_acc": 0.5000 }
+  },
+  "qwen3:1.7b": {
+    "g1": { "n_pos": 8, "n_neg": 8, "tp": 8, "tn": 6, "fab": 2, "over_abstain": 0, "pos_uncertain": 0, "neg_uncertain": 0, "tpr": 1.0000, "tnr": 0.7500, "fab_rate": 0.2500, "balanced_acc": 0.8750 },
+    "g2": { "n_pos": 8, "n_neg": 8, "tp": 6, "tn": 6, "fab": 2, "over_abstain": 2, "pos_uncertain": 0, "neg_uncertain": 0, "tpr": 0.7500, "tnr": 0.7500, "fab_rate": 0.2500, "balanced_acc": 0.7500 },
+    "g3": { "n_pos": 4, "n_neg": 4, "tp": 0, "tn": 4, "fab": 0, "over_abstain": 4, "pos_uncertain": 0, "neg_uncertain": 0, "tpr": 0.0000, "tnr": 1.0000, "fab_rate": 0.0000, "balanced_acc": 0.5000 }
+  },
+  "qwen3:4b": {
+    "g1": { "n_pos": 8, "n_neg": 8, "tp": 8, "tn": 3, "fab": 3, "over_abstain": 0, "pos_uncertain": 0, "neg_uncertain": 2, "tpr": 1.0000, "tnr": 0.3750, "fab_rate": 0.3750, "balanced_acc": 0.6875 },
+    "g2": { "n_pos": 8, "n_neg": 8, "tp": 8, "tn": 4, "fab": 0, "over_abstain": 0, "pos_uncertain": 0, "neg_uncertain": 4, "tpr": 1.0000, "tnr": 0.5000, "fab_rate": 0.0000, "balanced_acc": 0.7500 },
+    "g3": { "n_pos": 4, "n_neg": 4, "tp": 4, "tn": 2, "fab": 0, "over_abstain": 0, "pos_uncertain": 0, "neg_uncertain": 2, "tpr": 1.0000, "tnr": 0.5000, "fab_rate": 0.0000, "balanced_acc": 0.7500 }
+  }
+}

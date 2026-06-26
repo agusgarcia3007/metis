@@ -90,7 +90,16 @@ fn nli_verify(url: &str, claim: &str, evidence: &str) -> Verdict {
 /// parse_llm_verdict maps a free-text LLM reply to a Verdict.
 /// Order matters: "UNSUPPORTED" contains "SUPPORTED", so we test the negative first.
 fn parse_llm_verdict(s: &str) -> Verdict {
-    let u = s.to_uppercase();
+    // Reasoning models (Qwen3 et al.) may prepend a <think>…</think> block that *echoes the prompt*,
+    // including the literal words "SUPPORTED or UNSUPPORTED". Substring-scanning that block reads the
+    // echoed "UNSUPPORTED" as the verdict and flips every answer to Unsupported (measured: it made a
+    // correctly-reasoning 4B look like it rejected everything). The real verdict is what follows the
+    // closing tag, so strip the think block before reading.
+    let tail = match s.rfind("</think>") {
+        Some(i) => &s[i + "</think>".len()..],
+        None => s,
+    };
+    let u = tail.to_uppercase();
     if u.contains("UNSUPPORTED") || u.contains("NOT SUPPORTED") || u.contains("NOT FULLY") {
         Verdict::Unsupported
     } else if u.contains("SUPPORTED") {
@@ -112,5 +121,15 @@ mod tests {
         assert_eq!(parse_llm_verdict("SUPPORTED"), Verdict::Supported);
         assert_eq!(parse_llm_verdict("Yes, this is supported."), Verdict::Supported);
         assert_eq!(parse_llm_verdict("maybe?"), Verdict::Uncertain);
+    }
+
+    #[test]
+    fn verdict_ignores_thinking_block_echo() {
+        // A reasoning model echoes "SUPPORTED or UNSUPPORTED" inside its think block, then answers.
+        // The verdict must come from AFTER </think>, not from the echoed instruction.
+        let reply = "Reply with one word: SUPPORTED or UNSUPPORTED.\nThe evidence states it directly.\n</think>\n\nSUPPORTED";
+        assert_eq!(parse_llm_verdict(reply), Verdict::Supported);
+        let reply_neg = "The claim says 192 but evidence says 512.\n</think>\n\nUNSUPPORTED";
+        assert_eq!(parse_llm_verdict(reply_neg), Verdict::Unsupported);
     }
 }
