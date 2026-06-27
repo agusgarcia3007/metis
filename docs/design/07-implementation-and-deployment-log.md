@@ -155,3 +155,111 @@ Two known rough edges and the next levers:
 Bigger bets still ahead (from docs 01/06): the **verified-trace flywheel** (every verified answer
 becomes a retrievable exemplar — learning without training) and **cheap latent search** (make a
 reasoning step cost ms so test-time search is affordable on CPU).
+
+---
+
+## 8. The Ornith-1.0 study — self-scaffolding & a deterministic trust boundary (2026-06-27)
+
+### 8.1 What prompted it
+
+On 2026-06-25 DeepReinforce released **Ornith-1.0**, an MIT-licensed open-source family of *agentic
+coding* models (9B Dense, 31B Dense, 35B MoE, 397B MoE; built on Gemma 4 + Qwen 3.5). It posted
+frontier-adjacent numbers:
+
+| benchmark | Ornith-397B | Claude Opus 4.7 | Claude Opus 4.8 |
+|---|---:|---:|---:|
+| SWE-Bench Verified | **82.4** | 80.8 | 87.6 |
+| Terminal-Bench 2.1 | **77.5** | 70.3 | 85.0 |
+| SWE-Bench Pro | 62.2 | 64.3 | 69.2 |
+
+The headline that matters for Metis is **not** the flagship — it is the **9B**: 43.1 on Terminal-Bench
+(≈ Gemma 4-31B, ~3.4× larger) and 69.4 on SWE-Bench Verified (vs 53.2 for Qwen3.5-9B). *A small model,
+well-scaffolded, fights models several times its size.* That is, almost word for word, the Metis bet
+(`README.md`, doc 01). Independent June-2026 confirmation that **scaffold beats parameters** is worth
+banking.
+
+Sources: DeepReinforce blog (`deep-reinforce.com/ornith_1_0.html`), MarkTechPost (2026-06-25),
+explainx.ai, testingcatalog.com, HF `deepreinforce-ai/Ornith-1.0-9B`.
+
+### 8.2 The two ideas we took
+
+1. **Self-scaffolding.** Ornith does not hard-code the agent harness (retry budget, orchestration,
+   temperatures). It *learns* the scaffold during RL: conditioned on the task and the last scaffold, the
+   model proposes a refined scaffold, then a solution under it; reward flows to **both** stages, so good
+   orchestration patterns survive by selection. The Conductor's GVS loop **is** exactly such a scaffold —
+   but ours was *fixed* (one `GvsConfig` for every query). Ornith's lesson: make it *adapt to the task*.
+
+2. **A deterministic trust boundary, judge-first.** Against reward hacking, Ornith stacks three layers:
+   a *fixed trust boundary* (env/tools immutable), a *deterministic monitor* (catches forbidden-path /
+   unauthorised-tool gaming → zero reward), and a *frozen LLM judge* (catches intent-level gaming). The
+   cheap, **uncheatable** deterministic check runs *before* the fallible judge. GVS only had the judge.
+
+We **deliberately did not** copy Ornith's mechanism — 397B, multi-hour pipeline-RL with
+staleness-weighted GRPO. That is the cloud-bound, retrain-the-weights world Metis bets against. We took
+the *ideas* and implemented the honest, runnable, **no-training** slice of each.
+
+### 8.3 What we built
+
+- **Layer 1 — deterministic citation monitor** (`src/monitor.rs`). Pure code: every inline `[n]`
+  citation must reference a real retrieved source (`1..=n_sources`). `[4]` with 3 sources, `[0]`, or a
+  cite for a fact that came from a different chunk — all caught for free, *before* the judge spends a
+  token. This closes a real gap: a tiny Cortex emits grounded-*looking* citations that an entailment
+  judge (which scores prose against pooled evidence) can wave through even when the citation is invented.
+  Markdown links `[text](url)` and footnote markers `[note]` are correctly ignored. Wired into
+  `conductor::answer` as a gate: a candidate is accepted only if it clears **Layer 1 (monitor) AND
+  Layer 2 (judge)**, on both the first generation and every search candidate.
+
+- **Self-scaffolding at inference** (`src/scaffold.rs`). A deterministic classifier picks a profile per
+  query and tunes the GVS knobs — the cheap version of Ornith's learned scaffold, with the *seam* in the
+  right place (swap `Scaffold::select` for an LLM proposer later):
+  - `Compute` (exact arithmetic) → 1 low-temp pass; the `calc` tool is authoritative, so diverse
+    re-rolls only invite the model to *skip* the tool.
+  - `OpenDomain` (web-blended evidence) → wider budget (≥4) + decorrelated search (temp 0.9).
+  - `Factual` (local lookup/synthesis) → the balanced default.
+  - `Direct` (no evidence) → single pass; nothing to verify against.
+  Controlled by `METIS_SCAFFOLD=auto|off|compute|opendomain|factual|direct`; `off` restores the legacy
+  fixed config exactly (backward-compatible). Operator overrides (`METIS_SEARCH`, `METIS_NLI_URL`) still
+  flow through as the baseline the scaffold tunes.
+
+### 8.4 The benchmark run — what is honest here
+
+The user asked to run the standard benchmarks (SWE-Bench / ARC-AGI-style, bare-then-Metis). **That run
+was not possible in this sandbox, and pretending otherwise would be the one unforgivable thing.** Why:
+
+- **No live Cortex.** ollama is not installed; the network policy allows only package registries
+  (crates.io, PyPI), so the ollama binary (404) and any model pull are blocked. Every inference
+  benchmark — `bench/benchmark.py`, SWE-Bench, ARC-AGI — needs a model generating tokens.
+- **Railway API down.** The public deploy returned 404 (nginx) on `/healthz` and `/ask`, so the live
+  Metis side could not be exercised either.
+- **Scope.** SWE-Bench/Terminal-Bench are *coding-agent* harnesses (patch a repo, run its tests).
+  Metis is a grounded-QA / RAG system, not a coding agent — those numbers measure a different machine.
+  Metis's own apples-to-apples test is the bare-vs-Metis grounded-QA harness in `bench/`.
+
+What we **could** run, and did:
+
+- **`cargo test` — 32 passed, 0 failed** (incl. the new `monitor` + `scaffold` + `benchlayers` suites,
+  alongside the nano gradient-checks).
+- **Offline layer benchmark** (`metis bench-layers`, `src/benchlayers.rs` → `bench/results-layers.json`).
+  No model required — it exercises the deterministic layers directly, BASE (behaviour before this
+  change) vs METIS:
+
+  | Layer 1 — citation monitor (13 cases: 6 fabricated, 7 clean) | fabricated caught | clean preserved | false rejects |
+  |---|---:|---:|---:|
+  | BASE (Layer 2 / judge only) | 0 / 6 | 7 / 7 | 0 |
+  | METIS (Layer 1 + 2)         | **6 / 6** | 7 / 7 | **0** |
+
+  Self-scaffolding routing: **9 / 9** queries routed to the correct profile. The monitor catches every
+  fabricated citation the judge-only path lets through, with zero false rejects on clean answers.
+
+The live bare-vs-Metis run is **ready to execute** wherever a Cortex is reachable — unchanged command
+in `bench/RESULTS.md`. It belongs on a box with ollama, not in this network-restricted container.
+
+### 8.5 Envelope
+
+What `bench-layers` proves: the deterministic layer does exactly what it claims, deterministically, on
+a labelled adversarial suite. What it does **not** prove: any end-to-end answer-quality delta — that
+still needs the live harness, and the monitor's value only shows up when a real Cortex actually
+fabricates a citation. Ornith's own caveat, adopted here verbatim: *scores vary with harness,
+temperature, and context window — reproduce on your stack.* Next lever in this thread: replace the
+heuristic `Scaffold::select` with a one-shot LLM scaffold proposer (true self-scaffolding), and feed
+monitor rejections into the verified-trace flywheel.

@@ -19,6 +19,7 @@ use metis_0::conductor::{self, GvsConfig};
 use metis_0::hands;
 use metis_0::kernel::{Kernel, Message, OllamaKernel, Tool};
 use metis_0::library::{self, Chunk, Embedder, Extraction, Hit, Store};
+use metis_0::scaffold::Scaffold;
 use metis_0::verifier::VerifierKind;
 use serde_json::json;
 
@@ -38,8 +39,9 @@ fn main() {
         "serve" => serve(),
         "setup" => ensure_models(),
         "extract" => run_extract_bench(),
+        "bench-layers" => run_bench_layers(),
         _ => {
-            eprintln!("usage: metis [chat | serve | setup | index <paths...> | ask \"<q>\" | version]");
+            eprintln!("usage: metis [chat | serve | setup | index <paths...> | ask \"<q>\" | bench-layers | version]");
             std::process::exit(2);
         }
     }
@@ -166,6 +168,23 @@ fn gvs_config() -> GvsConfig {
         }
     }
     c
+}
+
+/// gvs_config_for is the operator baseline (`gvs_config`) tuned by the *scaffold* selected for this
+/// query — Metis's cheap, inference-time take on Ornith-1.0's self-scaffolding (`crate::scaffold`).
+///
+/// Selection is controlled by `METIS_SCAFFOLD`:
+///   unset / "auto"  → classify the query + evidence and tune accordingly (the default)
+///   "off"           → no scaffolding; use the operator baseline unchanged (legacy behaviour)
+///   "compute" | "opendomain" | "factual" | "direct" → force that profile (for benchmarking)
+fn gvs_config_for(query: &str, hits: &[Hit]) -> GvsConfig {
+    let base = gvs_config();
+    let mode = std::env::var("METIS_SCAFFOLD").unwrap_or_default();
+    if mode.trim().eq_ignore_ascii_case("off") {
+        return base;
+    }
+    let scaffold = Scaffold::parse(&mode).unwrap_or_else(|| Scaffold::select(query, hits));
+    scaffold.apply(base)
 }
 
 // ---- Library (index) ----
@@ -468,6 +487,18 @@ fn run_extract_bench() {
     }
 }
 
+/// runBenchLayers runs the offline, no-LLM benchmark of the two Ornith-inspired layers (the
+/// deterministic citation monitor and the adaptive scaffold router) and writes the JSON report to
+/// bench/results-layers.json. Needs no ollama — it exercises the deterministic code directly.
+fn run_bench_layers() {
+    let json = metis_0::benchlayers::run_and_print();
+    let path = "bench/results-layers.json";
+    match std::fs::write(path, &json) {
+        Ok(_) => println!("\nwrote {path}"),
+        Err(e) => eprintln!("\ncould not write {path}: {e}"),
+    }
+}
+
 // ---- ask: one-shot grounded answer ----
 
 fn run_ask(question: &str) {
@@ -498,7 +529,7 @@ fn run_ask(question: &str) {
     // Generate · Verify · Search: generate, verify against evidence, search if it fails, abstain if nothing holds.
     let tl = tools();
     let mut printer = |ev: &str| println!("  \x1b[2m[{ev}]\x1b[0m");
-    match conductor::answer(&k, &msgs, &hits, &tl, &gvs_config(), Some(&mut printer)) {
+    match conductor::answer(&k, &msgs, &hits, &tl, &gvs_config_for(question, &hits), Some(&mut printer)) {
         Ok(a) => {
             println!("{}", a.text.trim());
             if a.route != conductor::Route::Abstained {
@@ -577,7 +608,7 @@ fn chat() {
         msgs.push(Message { role: "user".to_string(), content: input.clone() });
 
         let mut printer = |ev: &str| println!("  \x1b[2m[{ev}]\x1b[0m");
-        match conductor::answer(&k, &msgs, &hits, &tools, &gvs_config(), Some(&mut printer)) {
+        match conductor::answer(&k, &msgs, &hits, &tools, &gvs_config_for(&input, &hits), Some(&mut printer)) {
             Ok(a) => {
                 println!("\nmetis> {}", a.text.trim());
                 if a.route != conductor::Route::Abstained {
@@ -671,7 +702,7 @@ fn serve() {
                     Message { role: "user".to_string(), content: q.clone() },
                 ];
                 let tl = tools();
-                match conductor::answer(&k, &msgs, &hits, &tl, &gvs_config(), None) {
+                match conductor::answer(&k, &msgs, &hits, &tl, &gvs_config_for(&q, &hits), None) {
                     Ok(a) => {
                         // Abstained answers cite nothing — they are explicitly *not* grounded.
                         let sources: Vec<serde_json::Value> = if a.route == conductor::Route::Abstained {

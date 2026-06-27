@@ -105,19 +105,29 @@ pub fn answer(
         return Ok(Answer { text: cand, verdict: None, route: Route::Unverifiable, attempts });
     }
 
-    // 2. VERIFY the candidate against the evidence.
+    // 2. VERIFY the candidate. A candidate is accepted only if it clears BOTH layers:
+    //    Layer 1 (deterministic monitor) — no fabricated citations — AND
+    //    Layer 2 (frozen judge)          — entailed by the evidence.
+    // Layer 1 runs first: it is uncheatable and free, so a candidate that invents a citation is
+    // rejected before the judge spends a token (the Ornith-1.0 ordering — see `crate::monitor`).
     let evidence = evidence_text(hits);
-    let v = cfg.verifier.verify(k, &cand, &evidence);
-    emit(&mut on_event, &format!("verify: {}", verdict_str(v)));
-    if v == Verdict::Supported {
-        return Ok(Answer { text: cand, verdict: Some(v), route: Route::Verified, attempts });
+    let n_sources = hits.len();
+    if passes_monitor(&cand, n_sources, &mut on_event) {
+        let v = cfg.verifier.verify(k, &cand, &evidence);
+        emit(&mut on_event, &format!("verify: {}", verdict_str(v)));
+        if v == Verdict::Supported {
+            return Ok(Answer { text: cand, verdict: Some(v), route: Route::Verified, attempts });
+        }
     }
 
-    // 3. SEARCH: a few diverse candidates, accept the first the evidence supports.
+    // 3. SEARCH: a few diverse candidates, accept the first that clears both layers.
     while attempts < cfg.max_candidates {
         emit(&mut on_event, &format!("search: candidate {}/{}", attempts + 1, cfg.max_candidates));
         let c = k.chat_tools(msgs, cfg.search_temp, tools, on_event.as_deref_mut())?;
         attempts += 1;
+        if !passes_monitor(&c, n_sources, &mut on_event) {
+            continue;
+        }
         let cv = cfg.verifier.verify(k, &c, &evidence);
         emit(&mut on_event, &format!("verify: {}", verdict_str(cv)));
         if cv == Verdict::Supported {
@@ -156,6 +166,23 @@ fn emit(on_event: &mut Option<&mut (dyn FnMut(&str) + '_)>, msg: &str) {
     if let Some(ev) = on_event.as_deref_mut() {
         ev(msg);
     }
+}
+
+/// passes_monitor runs Layer 1 — the deterministic citation monitor (`crate::monitor`). A
+/// candidate that fabricates a citation (`[n]` past the evidence set) is rejected here *before*
+/// the LLM/NLI judge ever runs, even if the judge would have passed it. Returns true when the
+/// candidate is clean. Emits a `monitor: …` event on rejection for the GVS log.
+fn passes_monitor(
+    answer: &str,
+    n_sources: usize,
+    on_event: &mut Option<&mut (dyn FnMut(&str) + '_)>,
+) -> bool {
+    let report = crate::monitor::check_citations(answer, n_sources);
+    if !report.clean() {
+        emit(on_event, &format!("monitor: {}", report.reason()));
+        return false;
+    }
+    true
 }
 
 #[cfg(test)]
