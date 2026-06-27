@@ -17,9 +17,12 @@
     clippy::excessive_precision
 )]
 
+pub mod benchlayers;
 pub mod conductor;
 pub mod hands;
 pub mod kernel;
 pub mod library;
+pub mod monitor;
 pub mod nano;
+pub mod scaffold;
 pub mod verifier;

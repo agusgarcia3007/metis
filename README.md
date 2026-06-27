@@ -104,6 +104,19 @@ candidates if it fails, and **abstains** rather than emit an unverified claim. N
 retraining — verifying is cheaper than generating, and a 1.7B is a reliable grounded *judge* even when
 it's a shaky generator.
 
+**A deterministic trust boundary + self-scaffolding (the Ornith-1.0 lessons).** Two layers, added
+after studying [Ornith-1.0](docs/design/07-implementation-and-deployment-log.md) (DeepReinforce's
+self-scaffolding coding models, whose **9B** fights models 3× its size — independent proof that
+*scaffold beats parameters*, the Metis bet). **Layer 1 — a deterministic citation monitor**
+(`src/monitor.rs`): every inline `[n]` must reference a real retrieved source, checked by pure code
+*before* the judge runs — a tiny Cortex's invented-but-grounded-looking citation is caught for free.
+**Self-scaffolding at inference** (`src/scaffold.rs`): instead of one fixed GVS config, a per-query
+scaffold tunes the loop (`compute` → one low-temp pass that defers to the calc tool; `opendomain` →
+wider, decorrelated search; `factual` → balanced). Ornith *learns* its scaffold with multi-hour RL;
+Metis gets the same shape with **zero training** — and a seam to swap in an LLM scaffold proposer later.
+Run the no-LLM proof: `metis bench-layers` (Layer 1 catches **6/6** fabricated citations the judge-only
+path lets through, 0 false rejects; routing **9/9**).
+
 **The web as a verified Library — open-domain, still grounded.** Point Metis at a self-hosted SearXNG
 (`METIS_SEARCH_URL=...`) and the live web becomes "a Library too big to store": results flow through
 the *same* ground→verify→cite→abstain loop, so it answers questions far outside its local corpus

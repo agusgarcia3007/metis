@@ -1,0 +1,8 @@
+{
+  "citation_monitor": {
+    "total": 13, "fabricated": 6, "clean": 7,
+    "base":  { "caught": 0, "false_rejects": 0 },
+    "metis": { "caught": 6, "false_rejects": 0 }
+  },
+  "scaffold_router": { "total": 9, "correct": 9 }
+}

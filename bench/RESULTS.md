@@ -39,6 +39,38 @@ this isolates *architecture*, not memorized trivia.
 The takeaway: the architecture, not the weights, is what turns an unreliable 1.7B generator into a
 trustworthy grounded system. **Same model. Zero datasets. Zero training.**
 
+## Offline layer benchmark (no LLM) — the Ornith-1.0 layers
+
+The bare-vs-Metis table above needs a live Cortex. Two of the GVS layers, however, are
+*deterministic by design* and can be benchmarked with **no model at all**, so they run on every
+commit and in any sandbox. `metis bench-layers` (source `src/benchlayers.rs`) measures them over a
+labelled adversarial suite, **BASE** (behaviour before the change) vs **METIS**:
+
+```sh
+cargo run --release --bin metis -- bench-layers   # writes bench/results-layers.json
+```
+
+**Layer 1 — deterministic citation monitor** (`src/monitor.rs`). Every inline `[n]` must reference a
+real retrieved source; `[4]` with 3 sources, `[0]`, or a fabricated index is caught *before* the
+LLM/NLI judge runs. 13 cases — 6 with a fabricated citation, 7 clean:
+
+| config | fabricated caught | clean preserved | false rejects |
+|---|---:|---:|---:|
+| BASE (Layer 2 / judge only) | 0 / 6 | 7 / 7 | 0 |
+| METIS (Layer 1 + 2)         | **6 / 6** | 7 / 7 | **0** |
+
+**Self-scaffolding** (`src/scaffold.rs`) — per-query GVS routing accuracy: **9 / 9**. Each scaffold
+tunes the GVS budget instead of one fixed config (`compute` → 1 low-temp pass, `opendomain` → wider
+decorrelated search, etc.). Both are inference-time, no-training takes on Ornith-1.0's self-scaffolding
+and three-layer trust boundary — see `docs/design/07` §8 for the full study and rationale.
+
+> **Benchmark honesty (Ornith's own caveat, adopted here).** Scores vary with harness, temperature,
+> and context window — *reproduce on your stack*. The frontier numbers cited in `docs/design/07` §8
+> are self-reported by their vendors, and Metis is grounded-QA, not a coding agent, so its
+> apples-to-apples test is the bare-vs-Metis harness here — not SWE-Bench / ARC-AGI. The offline layer
+> numbers above are exact and reproducible (deterministic, no model); the bare-vs-Metis numbers
+> require a live Cortex and the exact `MODEL` / `METIS_SEARCH` shown.
+
 ## Reproduce
 
 ```sh
