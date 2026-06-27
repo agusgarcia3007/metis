@@ -58,6 +58,8 @@ impl CitationReport {
 /// Non-numeric brackets are ignored, so Markdown links `[text](url)` and footnote markers like
 /// `[note]` never count as citations. A bracket group that mixes text and numbers (`[ref 2]`) is
 /// also ignored — citations in this codebase are always bare numbers (see `evidence_text`).
+/// A `]` immediately followed by `(` is a Markdown link, so even a *numeric* label (`[1](http://x)`)
+/// is treated as a link, not a citation — otherwise a reference-style link could be false-rejected.
 pub fn extract_citations(answer: &str) -> Vec<usize> {
     let mut out = Vec::new();
     let bytes = answer.as_bytes();
@@ -66,9 +68,13 @@ pub fn extract_citations(answer: &str) -> Vec<usize> {
         if bytes[i] == b'[' {
             // Find the matching ']'.
             if let Some(rel) = answer[i + 1..].find(']') {
-                let inner = &answer[i + 1..i + 1 + rel];
-                parse_citation_group(inner, &mut out);
-                i += 1 + rel + 1;
+                let close = i + 1 + rel; // byte index of the ']'
+                // `[label](url)` is a Markdown link, not a citation — skip it even when the label
+                // is purely numeric. Bare `[1]` (no following `(`) is still a citation.
+                if bytes.get(close + 1) != Some(&b'(') {
+                    parse_citation_group(&answer[i + 1..close], &mut out);
+                }
+                i = close + 1;
                 continue;
             }
         }
@@ -108,15 +114,17 @@ pub fn check_citations(answer: &str, n_sources: usize) -> CitationReport {
     let mut out_of_range = Vec::new();
     for n in extract_citations(answer) {
         if n >= 1 && n <= n_sources {
-            if !used.contains(&n) {
-                used.push(n);
-            }
-        } else if !out_of_range.contains(&n) {
+            used.push(n);
+        } else {
             out_of_range.push(n);
         }
     }
+    // sort + dedup is O(k log k); the old per-push `contains` scan was O(k²), and this runs for
+    // every candidate in the GVS loop.
     used.sort_unstable();
+    used.dedup();
     out_of_range.sort_unstable();
+    out_of_range.dedup();
     CitationReport { n_sources, used, out_of_range }
 }
 
@@ -142,6 +150,18 @@ mod tests {
         assert_eq!(extract_citations("empty [] group"), Vec::<usize>::new());
         // An unterminated bracket is not a citation.
         assert_eq!(extract_citations("dangling [1 with no close"), Vec::<usize>::new());
+    }
+
+    #[test]
+    fn ignores_numeric_markdown_links() {
+        // A `]` directly followed by `(` is a Markdown link, even with a numeric label — it must
+        // NOT be read as a citation, or a reference-style link list would be false-rejected.
+        assert_eq!(extract_citations("see [1](http://x) for details"), Vec::<usize>::new());
+        assert_eq!(extract_citations("[1](http://a) and [2](http://b)"), Vec::<usize>::new());
+        // But a bare numeric bracket right before unrelated parens is still a citation.
+        assert_eq!(extract_citations("the cap [1] (per the spec)"), vec![1]);
+        // And a numeric markdown link does not trip the monitor.
+        assert!(check_citations("ref [1](http://x)", 0).clean());
     }
 
     #[test]

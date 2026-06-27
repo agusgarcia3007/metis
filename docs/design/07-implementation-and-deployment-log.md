@@ -189,7 +189,7 @@ explainx.ai, testingcatalog.com, HF `deepreinforce-ai/Ornith-1.0-9B`.
    orchestration patterns survive by selection. The Conductor's GVS loop **is** exactly such a scaffold —
    but ours was *fixed* (one `GvsConfig` for every query). Ornith's lesson: make it *adapt to the task*.
 
-2. **A deterministic trust boundary, judge-first.** Against reward hacking, Ornith stacks three layers:
+2. **A deterministic trust boundary, monitor-first.** Against reward hacking, Ornith stacks three layers:
    a *fixed trust boundary* (env/tools immutable), a *deterministic monitor* (catches forbidden-path /
    unauthorised-tool gaming → zero reward), and a *frozen LLM judge* (catches intent-level gaming). The
    cheap, **uncheatable** deterministic check runs *before* the fallible judge. GVS only had the judge.

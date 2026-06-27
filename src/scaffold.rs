@@ -73,7 +73,9 @@ impl Scaffold {
             return Scaffold::Compute;
         }
         // A web hit is sourced from a URL (see `web_evidence`); local chunks carry a filename.
-        if hits.iter().any(|h| h.chunk.source.starts_with("http")) {
+        // Match the `http://` / `https://` scheme, not a bare `http` prefix, so a local file named
+        // e.g. `http-notes.md` is not misclassified as open-domain.
+        if hits.iter().any(|h| is_web_source(&h.chunk.source)) {
             return Scaffold::OpenDomain;
         }
         Scaffold::Factual
@@ -106,6 +108,13 @@ impl Scaffold {
         }
         c
     }
+}
+
+/// is_web_source reports whether a retrieved chunk came from the live web (a `http(s)://` URL set by
+/// `web_evidence`) rather than a local Library file. Scheme-anchored so local filenames that merely
+/// start with "http" (e.g. `http-notes.md`) stay classified as local.
+fn is_web_source(source: &str) -> bool {
+    source.starts_with("http://") || source.starts_with("https://")
 }
 
 /// looks_like_compute is a deterministic heuristic for "this query wants exact arithmetic". It is
@@ -204,6 +213,13 @@ mod tests {
     #[test]
     fn local_factual_is_factual() {
         let h = [hit("zephyr.md")];
+        assert_eq!(Scaffold::select("What is the protocol mascot?", &h), Scaffold::Factual);
+    }
+
+    #[test]
+    fn local_file_named_like_http_is_not_opendomain() {
+        // A local filename that merely starts with "http" must stay Factual, not OpenDomain.
+        let h = [hit("http-notes.md")];
         assert_eq!(Scaffold::select("What is the protocol mascot?", &h), Scaffold::Factual);
     }
 
