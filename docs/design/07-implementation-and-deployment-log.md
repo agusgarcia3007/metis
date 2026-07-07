@@ -473,3 +473,32 @@ monitor rejections into the verified-trace flywheel.
 - **Next:** replace synthetic mutations with a **git-history repair miner** (thousands of real
   (pre-fix, diagnostic, patch) triples across many repos) so the model must learn the repair MAP, not
   a handful of function bodies; only then is pass@1 off zero a real generalization result.
+
+### 2026-07-07 — Repair experiments 2-3: a measured capacity verdict (14M is too weak, honestly)
+
+- **Built:** `extract.py` (mine self-contained real TS functions from ~/projects — only ~19 typecheck
+  in isolation), `synth.py` (280 procedurally-diverse typed functions, tsc-verified), `miner_real.py`
+  (565 verified repair transitions over 299 distinct functions), `edit_repair.py` (edit-native output:
+  the model emits ONE corrected line, spliced at the diagnostic's line number — VERA-R §4).
+- **Measured (pass@1 on HELD-OUT calc.ts, three formats, all warm-started 14M, all gentle ~2-3 min):**
+  1. whole-file / 4 templates / 150 ex → pass@1 **0.0**, best 0.333 (memorizes bodies).
+  2. whole-file / 299 diverse fns / 565 ex → pass@1 **0.0**, best 0.333 (candidate dump: blends input
+     name with a training fragment, e.g. `scalestatPelUsd` — valid TS, wrong function).
+  3. edit-native / 1 line / 565 ex → pass@1 **0.0**, best 0.067 (candidate dump: for return-type
+     errors the compiler flags the `return` line but the fix is on the *signature* line, so splicing
+     the flagged line can't fix it; generated lines are also weak).
+- **Verdict — capacity, measured not assumed:** across three output contracts and 4→299 function
+  diversity, a 14M **byte-level** Cortex at ~2-3 min training cannot repair even trivial type errors
+  on held-out functions. The ruler is sensitive (0.0 garbage / 0.333 valid-but-wrong / would show
+  1.0 green) and consistently reports the same floor. This is **not** an optimizer or data-diversity
+  problem — both were varied and didn't move pass@1. It is model capacity + byte-level tokenization
+  (exact copy-with-edit is brutal byte-by-byte) + tiny training budget.
+- **Decision:** stop Mac-gentle iteration on the 14M byte model — it has told us what it can't do,
+  clearly. The levers that remain are exactly docs 12/16's real-run prescription, none of them a Mac
+  tweak: **(a) BPE tokenization** (byte-level makes `const ` 6 tokens to copy perfectly vs 1),
+  **(b) real capacity** (~0.3B), **(c) real training budget** (the cloud/nights run). The edit-native
+  insight stands and should carry to the real run, but it needs the diagnostic→*fix-line* mapping, not
+  the flagged line.
+- **Next:** the real run is now well-specified and de-risked by these negatives: BPE + ~0.3B +
+  repair-transition data at scale, measured on this exact harness. pass@1 leaving zero there is a real
+  result; here it honestly cannot.
