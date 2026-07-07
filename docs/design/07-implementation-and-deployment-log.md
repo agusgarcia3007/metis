@@ -374,3 +374,23 @@ monitor rejections into the verified-trace flywheel.
   magnitude on measured hardware.
 - **Next:** stacked/vectorized Newton-Schulz if throughput ever binds; then M1.0 (GitHub miner,
   RNT sequences) feeding night1 as the standard trainer.
+
+### 2026-07-07 — Off the Mac: free-GPU training path (Kaggle) after local training overheated
+
+- **Problem:** scaling toward Night 2 (50M params, seq 2048) saturated the 18 GB M3 Pro — training
+  and using the machine at once was unsustainable. Algorithmic wins (Muon 12×, BPE 3.3×) don't
+  change the physics of one shared-memory laptop doing datacenter work.
+- **Built:** `train-m/kaggle/` — a self-contained PyTorch port of the Night-1 architecture + Muon
+  (`kaggle_train.py`, one paste-able cell), a code-BPE tokenizer trained inline, and a local
+  CPU-only OpenAI-compatible server (`serve_torch.py`, KV-cached, self-throttled threads) so the
+  Mac only edits and serves. Target: Kaggle free **T4 x2** (30 h/week, background exec).
+- **Measured (CPU validation, no GPU touched):** model+Muon backward through Newton-Schulz learns
+  on synthetic data (loss < ln(vocab)); the serving KV cache matches the full forward to **9.5e-7**
+  max abs diff — generation is provably correct before the first Kaggle run.
+- **Decisions:** cloud = free Kaggle T4 (chosen over paid rental/Modal) — ~9× the Mac's GPU at zero
+  cost and zero local load. PyTorch on cloud (not MLX) lets us run the reference speedrun stack;
+  weights come back as `.pt` and serve locally on CPU, which is light for a ≤50M model.
+- **Verdict:** **go.** The train→download→serve→OpenCode loop is wired and unit-validated; the only
+  remaining step is a human running one Kaggle cell.
+- **Next:** run the Kaggle cell (15–25 min), pull the 3 artifacts, `serve_torch.py`, test in
+  OpenCode. Then M1.0's GitHub miner feeds larger corpora to the same free-GPU trainer.
