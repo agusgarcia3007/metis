@@ -348,3 +348,29 @@ monitor rejections into the verified-trace flywheel.
   now an iteration loop, not a bet.
 - **Next:** bf16 + `mx.compile` for ~2× throughput; the GitHub miner (issue → merged PR → diff + CI
   verdict) as M1.0's centerpiece; first RNT-shaped nights per docs 12/13.
+
+### 2026-07-07 — Night 1: the speedrun lessons land — 12.3× measured
+
+- **Built:** `train-m/night1/` — the modded-nanogpt record levers ported to MLX: **Muon** for the
+  block matrices (Newton-Schulz orthogonalized momentum, AdamW only for embeddings/head/norms),
+  bf16 weights + compute, `mx.compile`d step, RoPE, QK-norm, ReLU² MLP, zero-init output
+  projections, untied head, logit soft-capping. Plus a night1 `serve.py` (KV cache with RoPE
+  offsets) and `run.sh`.
+- **Measured (same budget as Night 0: 14M params, 800 steps, 13.1M tokens):** reached Night-0's
+  16-minute val loss (2.618) in **1.3 min → 12.3×** (upper-bounded by the 25-step val cadence).
+  Final val **0.694 = 1.004 bits/byte** vs Night-0's 2.618/3.776 — and far past the 51-minute MVP
+  checkpoint (1.092/1.575), crossed at ~5 min ≈ **10× to MVP quality**. Sustained **14.3k tok/s**
+  (MFU 0.25) — bf16+compile fully paid for Muon's ~48 orthogonalizations/step, so the entire win
+  is data efficiency at equal wall-clock throughput. Serving: 150 tokens in 0.66 s; qualitative
+  jump at equal budget: `const { t } = useTranslation();` — an idiomatic React hook line.
+- **Decisions:** night1 is the default trainer going forward. Doc-13 budgets re-derive at ~12×
+  data efficiency: the 40M hive trunk drops from ~14 nights to **~1–2**; the doc-12 0.3B rental
+  from ~US$2–3k to **~US$300–500** at equal target quality.
+- **Surprises:** Muon's data efficiency at this scale exceeded the literature's ~2× headline —
+  likely because it compounds with the architecture package (QK-norm, zero-init, soft-cap) and a
+  narrow, code-only byte distribution. The smoke run's apparent throughput drop was val-eval time
+  polluting the counter; excluded, throughput matched fp32 baseline.
+- **Verdict:** **go.** Pre-registered metric (time to Night-0 target) beaten by an order of
+  magnitude on measured hardware.
+- **Next:** stacked/vectorized Newton-Schulz if throughput ever binds; then M1.0 (GitHub miner,
+  RNT sequences) feeding night1 as the standard trainer.
