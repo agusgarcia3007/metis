@@ -423,3 +423,28 @@ monitor rejections into the verified-trace flywheel.
 - **Next:** FIM + BPE + Muon is the metis-1 pretraining recipe. At this scale the architecture is
   near-optimal; the remaining big levers are **data quality and teacher distillation**, not the
   optimizer or the block design.
+
+### 2026-07-07 — Repair harness: the ruler that gates the generator (doc 14 step 1)
+
+- **Built:** `train-m/repair/` — the Mac-safe (no GPU/Docker/training) measurement infra that decides
+  whether the Cortex can write code, judged by the compiler. Four pieces: `verifier.py` (deterministic
+  `tsc`+`bun test` ladder returning a dense `Reward` + the raw diagnostic — the teaching signal),
+  `breaker.py` (repair-transition factory: breaks working TS in known ways, keeps only truly-RED
+  mutations, emits `(broken, diagnostic) → gold` in VERA-R sequence shape), `passk.py` (pass@k vs the
+  compiler, model-agnostic), `cortex_generator.py` (the 14M FIM Cortex as a generator).
+- **Measured:** `test_repair.py` **13/13 green** — oracle accepts truth / rejects garbage (fab=0) /
+  dense score orders broken<partial<green; breaker makes real breaks with captured diagnostics
+  (TS2322, TS2304) whose gold fixes round-trip; pass@k detects success (gold=1.0) and failure
+  (noise=0.0) and is monotonic in k. **First real Cortex pass@k vs the compiler:** metis-fim-14M
+  pass@1/4/8 = 0.0/0.0/0.0, but `mean_best_score` rises 0.0→0.067→0.133 with k. gold ref pass@1=1.0.
+- **Decisions:** the compiler is the only judge — the model never self-grades (Aletheia lesson,
+  doc 14 §0). Verifier is a local no-Docker `tsc`/`bun` ladder now, interface-compatible with the
+  Phase-5 sandbox for later. Dense score (parse .2 / typecheck .3 / tests .5) gives search a gradient,
+  not a flat pass/fail (Agents-A1 step-level reward, doc 16 §5).
+- **Surprises:** the 14M floor is not flat — best-score climbing with k means the toy already emits
+  marginally-closer candidates; the ruler is sensitive enough to see it.
+- **Verdict:** **go.** The project now has an honest, tested ruler. "Better Cortex" is henceforth a
+  number on this harness, not a vibe.
+- **Next:** scale `breaker.py` into a git-history repair miner; train a stronger Cortex on the
+  transitions; re-run `cortex_generator.py` and watch pass@k leave zero. Only then does the doc-14
+  flywheel (pass@1-vs-round) have a generator worth amplifying.

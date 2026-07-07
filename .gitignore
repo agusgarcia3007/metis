@@ -24,3 +24,8 @@ train-m/**/__pycache__/
 train-m/**/serve.log
 train-m/**/corpus.txt
 train-m/**/.venv/
+
+# repair harness — local tsc install (regenerable via bun install)
+train-m/repair/fixture/node_modules/
+train-m/repair/fixture/bun.lock
+train-m/repair/**/__pycache__/
