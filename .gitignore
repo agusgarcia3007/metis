@@ -17,3 +17,10 @@
 
 # Downloaded data (fetched separately)
 /data/
+
+# metis-1 training artifacts (regenerable via train-m/night0/run.sh)
+train-m/**/*.safetensors
+train-m/**/__pycache__/
+train-m/**/serve.log
+train-m/**/corpus.txt
+train-m/**/.venv/

@@ -1,0 +1,15 @@
+{
+  "params_M": 14.77,
+  "tokens_per_s": 13462,
+  "flops_per_s": 1192801988723.1377,
+  "mfu_at_assumed_peak": 0.239,
+  "assumed_peak_tflops": 5.0,
+  "loss_first": 4.091,
+  "loss_last": 1.235,
+  "val_loss": 1.092,
+  "val_bits_per_byte": 1.575,
+  "tokens_trained_M": 41.0,
+  "wall_clock_min": 50.8,
+  "extrapolated_tokens_per_8h_night_M": 388,
+  "sample": "function = await db.end = await db.end || undefined ||\n| `/app/app/app/app/app/app/app/app/app/app/app/app/app/app/app/app/app/app/app/app/app/app/app/app/appp/app/appp/appp/appp/appp/appp/appp/appp/appp/appp/"
+}

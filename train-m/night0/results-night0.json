@@ -1,0 +1,15 @@
+{
+  "params_M": 14.77,
+  "tokens_per_s": 13677,
+  "flops_per_s": 1211824427150.2314,
+  "mfu_at_assumed_peak": 0.242,
+  "assumed_peak_tflops": 5.0,
+  "loss_first": 4.159,
+  "loss_last": 2.631,
+  "val_loss": 2.618,
+  "val_bits_per_byte": 3.776,
+  "tokens_trained_M": 13.1,
+  "wall_clock_min": 16.0,
+  "extrapolated_tokens_per_8h_night_M": 394,
+  "sample": "function  dentintin de de de de de de de de de de de de                                                                                                                                                          "
+}

@@ -263,3 +263,88 @@ fabricates a citation. Ornith's own caveat, adopted here verbatim: *scores vary 
 temperature, and context window — reproduce on your stack.* Next lever in this thread: replace the
 heuristic `Scaffold::select` with a one-shot LLM scaffold proposer (true self-scaffolding), and feed
 monitor rejections into the verified-trace flywheel.
+
+---
+
+### 2026-07-01 — Phase 5.0: TypeScript sandbox + Exec verifier
+
+- **Built:** `VerifierKind::Exec`; a typed `Reward`/`ExecReport`; syntax, `tsc`, ESLint, and Vitest
+  gates; and a pinned Node 22/TypeScript toolchain in `sandbox/code`. Every gate runs in a fresh
+  Docker container with no network, read-only mounts/rootfs, 1 CPU, 1 GiB RAM, 256 PIDs, bounded
+  output, and a 120 s timeout. Candidate patches cannot edit tests/tooling, add common skip/type
+  bypasses, or mutate the sealed workspace at runtime. Optional held-out tests are injected only
+  after the patch is applied. Tool/setup failures return `UNCERTAIN`; they never masquerade as a
+  rejected patch.
+- **Measured:** on an Apple M3 Pro (11 logical CPUs, 18 GiB RAM), six cold verifier runs took
+  3,311–4,364 ms each (mean **3,612 ms**). Mean gate times were parse **597 ms**, typecheck
+  **1,371 ms**, lint **832 ms**, and tests **807 ms**. The local image was 434,157,574 bytes.
+  The workspace immutability check failed closed with `Permission denied`, as intended.
+- **Decisions:** TypeScript is the first and only language surface. Commands cross the boundary as
+  argv, never model-controlled shell text. A successful test reward requires both exact counts and
+  a successful Vitest process/report. Four isolated containers cost startup latency but keep each
+  gate independent and deterministic; optimize only after retaining these semantics.
+- **Surprises:** the first run over-abstained because Vitest's transitive declarations required
+  Node types and a newer standard library. Pinning `@types/node`, `lib: ESNext`, and
+  `skipLibCheck` in the smoke fixture fixed the environment rather than weakening the verifier.
+- **Verdict:** **go** for Phase 5.0. The oracle is executable, isolated, fail-closed, and returns the
+  complete structured reward required by the search phase.
+- **Next:** run H2 on the preregistered ~20 real code tasks/candidates, then use measured verifier
+  latency to choose the Phase 5.2 parallel rollout budget.
+
+### 2026-07-01 — Phase 5.1 scaffold: H2 harness smoke (not the preregistered experiment)
+
+- **Built:** `src/bin/h2.rs` consumes a fixed JSON candidate set, preserves full raw gate evidence,
+  and reports TPR, TNR, fabrication rate, balanced accuracy, and uncertainty by edit depth. A
+  six-candidate g1/g2/g3 fixture includes visible and held-out tests.
+- **Measured:** the hand-authored smoke classified all 3 supported and all 3 unsupported patches
+  correctly: TPR **1.00**, TNR **1.00**, fabrication **0%**, balanced accuracy **1.00**, uncertainty
+  **0** at every depth. Raw data: `bench/results-h2-smoke.json`.
+- **Decisions:** policy rejections count as deterministic `UNSUPPORTED`; runtime, timeout, setup, and
+  malformed-report failures count as `UNCERTAIN`. Candidate generation remains outside the harness
+  so the same patches can be replayed against different verifier implementations.
+- **Surprises:** none after the Phase 5.0 toolchain correction.
+- **Verdict:** **pending**. This smoke validates plumbing only and does not satisfy the H2 success
+  criterion; claiming `<2%` requires the preregistered real-task set.
+- **Next:** freeze task IDs, patches, expected labels, and held-out tests for the real H2 dataset
+  before running it.
+
+### 2026-07-07 — metis-1m Night 0: MLX calibration on the M3 Pro (doc 13 §6)
+
+- **Built:** `train-m/night0/train.py` — a byte-level ~15M-param GPT trunk-let trained with MLX on
+  36.7 MB of real local code (8,000 TS/Rust/Python/Go/MD files, 34.9M train / 1.8M val bytes).
+- **Measured (800 steps, 13.1M tokens, 16.0 min wall-clock, fp32):** **13,677 tok/s** steady;
+  **1.21e12 FLOPs/s** ≈ **MFU 0.24** at an assumed 5-TFLOPS fp16 peak; train loss 4.16 → 2.63;
+  **val loss 2.618 = 3.78 bits/byte**; extrapolation: **394M tokens per 8-hour night** at 15M params.
+  Raw data: `train-m/night0/results-night0.json`.
+- **Decisions:** all doc-13 budgets now derive from the measured 1.2e12 FLOPs/s, not the assumed
+  2e12. At fp32 the 40M trunk costs ~14 nights for 2B tokens (vs the ~5–7 projected); the gap is
+  precision and kernel overhead, not thesis. bf16 + `mx.compile` + larger batch are the identified
+  levers to close it before Night 1.
+- **Surprises:** MFU landed almost exactly on the doc-13 assumption (0.24 vs 0.25) *without any
+  optimization* — in fp32. The greedy sample degenerates into repetition, as expected at 0.4
+  epochs of byte-level training; the val bits/byte curve, not the sample, is the signal tonight.
+- **Verdict:** **go.** The MacBook trains real models on real code at a measured, budgetable rate;
+  the Night-0 gate ("recompute every budget from a measured number") is satisfied.
+- **Next:** bf16 + compiled step to target ≥2e12 FLOPs/s, then Nights 1–7: the 40M trunk with
+  RNT-shaped sequences (doc 12 data factory) instead of raw concatenated bytes.
+
+### 2026-07-07 — metis-1 MVP: our own weights, end to end in OpenCode
+
+- **Built:** the full sovereign loop on the M3 Pro — `train-m/night0/train.py` (now saves
+  checkpoints), `serve.py` (OpenAI-compatible server with SSE streaming), `run.sh` (self-bootstrapping
+  launcher: corpus/train/serve), and a `metis` provider block in OpenCode's config. Journey entry 12
+  ("Our Own Weights") published on metis-web.
+- **Measured:** 2,500 steps, 41.0M tokens, 50.8 min wall-clock at 13,462 tok/s sustained (MFU 0.24,
+  fp32). Val loss **1.092 = 1.575 bits/byte** (Night-0 16-min checkpoint: 3.776). Qualitative arc,
+  same prompt through OpenCode: 30-second checkpoint → letter soup with braces; 51-minute checkpoint
+  → `//` comments, object literals with keys and quoted string values, `await db.end` in greedy
+  sampling. OpenCode → local server → MLX weights round-trip verified streaming and non-streaming.
+- **Decisions:** MVP serves raw MLX weights via a Python endpoint rather than GGUF conversion (the
+  trunk-let's GPT-2-style arch isn't worth a converter; metis-1 proper will be llama-compatible from
+  the start). Provider added alongside existing ones, not replacing.
+- **Surprises:** none mechanical — the pipe worked on the second try (a session restart orphaned the
+  first training run; `run.sh` now makes every piece re-runnable without this session's venv).
+- **Verdict:** **go.** The pipeline (train → serve → agent) is proven end to end at US$0; quality is
+  now an iteration loop, not a bet.
+- **Next:** bf16 + `mx.compile` for ~2× throughput; the GitHub miner (issue → merged PR → diff + CI
+  verdict) as M1.0's centerpiece; first RNT-shaped nights per docs 12/13.
