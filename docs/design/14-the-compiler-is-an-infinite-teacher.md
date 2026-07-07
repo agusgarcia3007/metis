@@ -8,6 +8,36 @@
 
 ---
 
+## 0. Sibling autopsy — why Aletheia failed, and the one lesson it burns into this doc
+
+Aletheia (`../aletheia`) is metis's twin: same thesis (intelligence in the loop, not the weights),
+built first, in Go. It ended a mess — in practice it just regurgitated sources and did nothing
+useful. The code says exactly why, and it is the most important thing in this document:
+
+- **It never had a model that could write code.** The only artifact ever trained end-to-end was a
+  1-layer, d=64, vocab=512 byte-model doing intent routing. Its "real" architecture (`TransformerV2`,
+  MoE) has **no backprop at all** — forward pass only, never trained. All apparent "capability" —
+  search, repair — was **regex rules over a fixed action vocabulary**, never model-generated code.
+- **So in open domain it could only retrieve and cite.** With no generator behind it, "answer" =
+  "here are some sources." That is the failure the user lived.
+- **Its own conclusion was the trap:** *"capability comes from the loop, not from parameters."* Taken
+  literally, they kept the model a toy and expected the loop to supply capability. **The loop
+  amplifies capability; it cannot manufacture it.** With nothing to amplify, the loop amplified zero.
+
+**The lesson, non-negotiable for metis-1:** the loop is worthless without a Cortex that already
+writes genuinely good code in the narrow domain. The generator comes first (Muon + FIM + BPE — the
+thing Aletheia never built); the flywheel is amplification *on top of* a capable model, never a
+substitute for one. Any plan that reaches for the loop before the model can generate is Aletheia
+again.
+
+**What is still worth lifting from Aletheia — but only after the generator exists:** (1) the
+**promote-only-if-better gate** (`internal/learning`: deterministic held-out split, train candidate
+vs a baseline trained without the new data, promote iff `candidate ≥ baseline`) — the one safety
+valve that stops a self-improvement loop from shipping regressions; (2) the **harvest-and-filter
+discipline** — strip citations before training, **never train the model to imitate its own
+abstentions/hedging**, reject duplicate-token dumps, dedup; (3) the **no-shell allowlist verifier
+bus**. Everything else Aletheia "had" was regex and retrieval, not intelligence.
+
 ## 1. The structural weakness of every frontier coding model
 
 A frontier coding agent is a huge, frozen, generic artifact rented from a datacenter. On the day it
@@ -110,9 +140,24 @@ number of the project.
 - Compounding may saturate quickly (the model learns the easy wins, then stalls). The curve's *shape*,
   not just its first step, is the result.
 
-## 8. Next action
+## 8. Next action — the generator FIRST (Aletheia's grave is the proof)
 
-Build the minimal flywheel: wire the shipped Phase-5 verifier to the FIM Cortex's search, run 2–3
-self-distill rounds on a small held-out TS task set, and plot pass@1 vs round at fixed model size.
-That single plot is the project. Everything else — retriever, GitHub miner, bigger Cortex, the cloud
-run — is amplification of a loop that this experiment either validates or kills.
+The autopsy (§0) reorders everything. The flywheel is step two, not step one. **Step one is a Cortex
+that writes genuinely good TypeScript in the narrow repair/edit domain, verified by the compiler** —
+the exact thing Aletheia never had and died without. Only once the model can generate real,
+frequently-compiling candidates does the loop have something to amplify.
+
+So the sequence is:
+
+1. **Make the generator good.** Muon + FIM + BPE, trained on real repair-shaped TS data, until it
+   emits candidates that compile/typecheck at a non-trivial rate on held-out tasks. Measure
+   **pass@k with the verifier** (can search find a green fix within k samples?) — if pass@k is flat,
+   the generator is too weak and no loop rescues it (Aletheia's exact failure, now falsifiable).
+2. **Then** wire the shipped Phase-5 verifier into search and run 2–3 self-distill rounds; plot
+   **pass@1 vs round at fixed model size** — the compounding curve that is the project's headline.
+3. Adopt Aletheia's promote-only-if-better gate and harvest-filter discipline (§0) to keep the loop
+   from regressing.
+
+The single plot that decides the project is still pass@1-vs-round — but it is meaningless until
+step 1 clears its own gate. Build the model that can write code before building the loop that teaches
+it. That ordering is the whole lesson of the sibling that failed.
