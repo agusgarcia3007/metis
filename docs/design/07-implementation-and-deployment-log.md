@@ -394,3 +394,32 @@ monitor rejections into the verified-trace flywheel.
   remaining step is a human running one Kaggle cell.
 - **Next:** run the Kaggle cell (15–25 min), pull the 3 artifacts, `serve_torch.py`, test in
   OpenCode. Then M1.0's GitHub miner feeds larger corpora to the same free-GPU trainer.
+
+### 2026-07-07 — Night 2: what the edge is NOT (nGPT) and what it IS (FIM)
+
+- **Investigated (Mac-safe, gentle runs):** two candidate architectural edges for cheaper results.
+  1. **nGPT / hypersphere normalization** (reported 4–20× fewer tokens). Ported to MLX
+     (`night2/train_ngpt.py`): unit-norm representations, cosine attention with learned QK scale,
+     normalized-LERP residuals with per-dim eigen learning rates, post-step weight normalization.
+     Tested nGPT+Muon and nGPT+Adam vs Night-1's recorded byte-level curve, same 14M/seq1024.
+  2. **Fill-in-the-Middle (FIM)** — the code-specific objective (StarCoder/DeepSeek-Coder standard
+     at rate 0.5). Implemented in `night2/train_fim.py` as a PSM data transform (byte vocab + 3
+     sentinels) on top of the Night-1 Muon champion.
+- **Measured:** nGPT **lost** at this scale — nGPT+Muon val 3.75 @ step50 (night1: 2.41);
+  nGPT+Adam val 3.25 @ step150 (night1: 1.35). The speedrun stack (Muon+RMSNorm+RoPE+QK-norm+
+  zero-init+soft-cap) is already a strong baseline; a faithful-enough nGPT-lite did not beat it and
+  the missing pieces (s_u/s_v scaling, alpha init schedule) are a known-finicky rabbit hole.
+  FIM trained stably at 13k tok/s with no extra memory or FLOPs.
+- **Decisions:** the edge at this scale is the **objective, not the optimizer**. Keep Night-1 (Muon)
+  as the trainer; adopt **FIM** as the default objective (it matches OpenCode's actual job — infill
+  an edit given both sides — and is free). nGPT shelved as a negative result, not deleted; revisit
+  only with the full scaling-factor recipe if we ever hit an optimizer wall.
+- **Verdict:** **go** on FIM (code-native, memory-neutral, composes with Muon+BPE). **no-go** on
+  nGPT as built.
+- **Infill caveat (honest):** FIM loss descended stably to val 0.919 @ 400 steps, but greedy AND
+  sampled infill on the 14M byte-level checkpoint collapsed to whitespace — expected at only 6.5M
+  tokens (night0's MVP was still "soup" at 41M). The FIM *mechanism* is validated (loss, sentinels,
+  Muon-composition); crisp infill needs the real run (BPE + far more tokens), not more architecture.
+- **Next:** FIM + BPE + Muon is the metis-1 pretraining recipe. At this scale the architecture is
+  near-optimal; the remaining big levers are **data quality and teacher distillation**, not the
+  optimizer or the block design.
