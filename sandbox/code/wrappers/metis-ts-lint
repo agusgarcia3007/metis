@@ -1,0 +1,5 @@
+#!/bin/sh
+exec node /opt/metis-tools/node_modules/eslint/bin/eslint.js \
+  --no-config-lookup \
+  --config /opt/metis-tools/eslint.config.mjs \
+  . "$@"

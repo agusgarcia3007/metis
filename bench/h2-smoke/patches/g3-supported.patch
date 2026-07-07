@@ -1,0 +1,19 @@
+diff --git a/src/math.ts b/src/math.ts
+--- a/src/math.ts
++++ b/src/math.ts
+@@ -1,11 +1,12 @@
+ export function add(a: number, b: number): number {
+-  return a + b;
++  return b + a;
+ }
+ 
+ export function double(value: number): number {
+-  return value * 2;
++  return value + value;
+ }
+ 
+ export function pipeline(value: number): number {
+-  return double(add(value, 1));
++  const incremented = add(1, value);
++  return double(incremented);
+ }

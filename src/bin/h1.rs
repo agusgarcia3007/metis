@@ -202,13 +202,13 @@ fn main() {
             let _ = writeln!(table,
                 "{model:<15} g{g}  {:>2}  {:>2}  {:.3}  {:.3}  {:>4.0}   {:.3}",
                 c.n_pos, c.n_neg, c.tpr(), c.tnr(), c.fab_rate() * 100.0, c.balanced_acc());
-            let _ = write!(json,
-                "    \"g{g}\": {{ \"n_pos\": {}, \"n_neg\": {}, \"tp\": {}, \"tn\": {}, \"fab\": {}, \"over_abstain\": {}, \"pos_uncertain\": {}, \"neg_uncertain\": {}, \"tpr\": {:.4}, \"tnr\": {:.4}, \"fab_rate\": {:.4}, \"balanced_acc\": {:.4} }}{}\n",
+            let _ = writeln!(json,
+                "    \"g{g}\": {{ \"n_pos\": {}, \"n_neg\": {}, \"tp\": {}, \"tn\": {}, \"fab\": {}, \"over_abstain\": {}, \"pos_uncertain\": {}, \"neg_uncertain\": {}, \"tpr\": {:.4}, \"tnr\": {:.4}, \"fab_rate\": {:.4}, \"balanced_acc\": {:.4} }}{}",
                 c.n_pos, c.n_neg, c.tp, c.tn, c.fab, c.over_abst, c.pos_unc, c.neg_unc,
                 c.tpr(), c.tnr(), c.fab_rate(), c.balanced_acc(),
                 if gi + 1 < n_gran { "," } else { "" });
         }
-        let _ = write!(json, "  }}{}\n", if mi + 1 < models.len() { "," } else { "" });
+        let _ = writeln!(json, "  }}{}", if mi + 1 < models.len() { "," } else { "" });
         table.push_str("---------------------------------------------------------------\n");
     }
     json.push_str("}\n");

@@ -117,6 +117,20 @@ Metis gets the same shape with **zero training** — and a seam to swap in an LL
 Run the no-LLM proof: `metis bench-layers` (Layer 1 catches **6/6** fabricated citations the judge-only
 path lets through, 0 false rejects; routing **9/9**).
 
+**Phase 5 code verifier — deterministic Hands for TypeScript patches.** `VerifierKind::Exec` applies
+a unified diff inside a fresh, networkless, resource-limited container and returns structured syntax,
+typecheck, lint, and Vitest rewards. Tests/config are patch-protected, held-out tests are injected
+after the edit, and the workspace becomes read-only before candidate code runs. Build and exercise
+the smoke harness with:
+
+```sh
+docker build -t metis-code-sandbox:phase5 sandbox/code
+cargo run --release --bin h2 -- bench/h2-smoke/dataset.json bench/results-h2-smoke.json
+```
+
+The bundled six-candidate smoke set validates the oracle wiring; it is not the preregistered
+SWE-bench H2 result. Raw gate evidence is written to `bench/results-h2-smoke.json`.
+
 **The web as a verified Library — open-domain, still grounded.** Point Metis at a self-hosted SearXNG
 (`METIS_SEARCH_URL=...`) and the live web becomes "a Library too big to store": results flow through
 the *same* ground→verify→cite→abstain loop, so it answers questions far outside its local corpus
@@ -188,8 +202,9 @@ chat without Docker: `./target/release/metis chat`.
   [results write-up](bench/RESULTS.md), and the raw numbers (`results-*.json`).
 - **Research** — [`docs/research/`](docs/research/): twelve deep, sourced notes.
 - **Code** — `src/kernel` (Cortex backend), `src/library` (knowledge plane), `src/hands` (tools:
-  calc, clock, **web/SearXNG**), `src/conductor.rs` (the **GVS** loop), `src/nano` (from-scratch
-  transformer + the RNT experiments), `src/bin/metis.rs` (the CLI), `src/bin/rnt.rs` (RNT runner).
+  calc, clock, **web/SearXNG**, **sandboxed code verification**), `src/conductor.rs` (the **GVS**
+  loop), `src/nano` (from-scratch transformer + the RNT experiments), `src/bin/metis.rs` (the CLI),
+  `src/bin/rnt.rs` (RNT runner).
 - **Deploy** — single-container Railway image (`Dockerfile.railway`) + SearXNG sidecar (`searxng/`);
   see the log for the topology and the hard-won CPU-stability env.
 

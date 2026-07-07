@@ -1,0 +1,54 @@
+{
+  "name": "phase5-exec-smoke-v1",
+  "candidate_source": "hand-authored verifier smoke set; not the preregistered SWE-bench H2 set",
+  "items": [
+    {
+      "id": "g1-supported",
+      "depth": 1,
+      "expected_supported": true,
+      "project": "project",
+      "patch": "patches/g1-supported.patch",
+      "held_out_tests": "held-out"
+    },
+    {
+      "id": "g1-unsupported",
+      "depth": 1,
+      "expected_supported": false,
+      "project": "project",
+      "patch": "patches/g1-unsupported.patch",
+      "held_out_tests": "held-out"
+    },
+    {
+      "id": "g2-supported",
+      "depth": 2,
+      "expected_supported": true,
+      "project": "project",
+      "patch": "patches/g2-supported.patch",
+      "held_out_tests": "held-out"
+    },
+    {
+      "id": "g2-unsupported",
+      "depth": 2,
+      "expected_supported": false,
+      "project": "project",
+      "patch": "patches/g2-unsupported.patch",
+      "held_out_tests": "held-out"
+    },
+    {
+      "id": "g3-supported",
+      "depth": 3,
+      "expected_supported": true,
+      "project": "project",
+      "patch": "patches/g3-supported.patch",
+      "held_out_tests": "held-out"
+    },
+    {
+      "id": "g3-unsupported",
+      "depth": 3,
+      "expected_supported": false,
+      "project": "project",
+      "patch": "patches/g3-unsupported.patch",
+      "held_out_tests": "held-out"
+    }
+  ]
+}

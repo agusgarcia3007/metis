@@ -1,0 +1,10 @@
+diff --git a/src/math.ts b/src/math.ts
+--- a/src/math.ts
++++ b/src/math.ts
+@@ -1,5 +1,5 @@
+ export function add(a: number, b: number): number {
+-  return a + b;
++  return b + a;
+ }
+ 
+ export function double(value: number): number {

@@ -1,7 +1,7 @@
-//! verifier — the Verifier abstraction and its two implementations.
+//! verifier — the Verifier abstraction and its implementations.
 //!
 //! A Verifier checks whether a candidate answer (claim) is entailed by a body of evidence.
-//! Two implementations ship:
+//! Three implementations ship:
 //!
 //!   LlmVerifier  — the Cortex itself acts as judge (same model as the generator). Zero extra RAM.
 //!                  Works because verification < generation: a weak model can recognize a correct
@@ -12,8 +12,13 @@
 //!                  A 22M model trained on NLI datasets beats a 1.7B generalist at this one job.
 //!                  Enable with METIS_NLI_URL=http://<sidecar>:9090.
 //!
+//!   ExecVerifier — a sandboxed deterministic oracle for code candidates. It checks syntax, types,
+//!                  lint, and tests. Unlike text verification, infrastructure failures are errors:
+//!                  callers must abstain instead of interpreting a broken tool as a verdict.
+//!
 //! Phase 2 hypothesis: 0.6B generator + 22M NLI verifier ≈ 1.7B generalist doing both, at ~44% RAM.
 
+use crate::hands::verify_exec::{ExecError, ExecReport, ExecRequest, ExecVerifier};
 use crate::kernel::{Message, OllamaKernel};
 
 /// The judge's decision: is the candidate answer entailed by the retrieved evidence?
@@ -30,6 +35,8 @@ pub enum VerifierKind {
     Llm,
     /// Call the NLI sidecar at the given URL. Faster, smaller, specialized.
     Nli { url: String },
+    /// Run code candidates through an isolated compiler/type/lint/test oracle.
+    Exec(Box<ExecVerifier>),
 }
 
 impl VerifierKind {
@@ -37,6 +44,16 @@ impl VerifierKind {
         match self {
             Self::Llm => llm_verify(k, claim, evidence),
             Self::Nli { url } => nli_verify(url, claim, evidence),
+            // Text claims cannot be passed to an execution verifier. Returning Uncertain preserves
+            // the GVS fail-closed behavior if a caller wires the wrong verifier to grounded QA.
+            Self::Exec(_) => Verdict::Uncertain,
+        }
+    }
+
+    pub fn verify_code(&self, request: &ExecRequest) -> Result<ExecReport, ExecError> {
+        match self {
+            Self::Exec(verifier) => verifier.verify(request),
+            Self::Llm | Self::Nli { .. } => Err(ExecError::WrongVerifierKind),
         }
     }
 }

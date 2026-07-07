@@ -1,0 +1,2 @@
+#!/bin/sh
+exec node /opt/metis-tools/node_modules/typescript/bin/tsc --noEmit --pretty false "$@"

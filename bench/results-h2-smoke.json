@@ -1,0 +1,391 @@
+{
+  "experiment": "H2",
+  "dataset": "phase5-exec-smoke-v1",
+  "candidate_source": "hand-authored verifier smoke set; not the preregistered SWE-bench H2 set",
+  "sandbox_image": "metis-code-sandbox:phase5",
+  "items": [
+    {
+      "id": "g1-supported",
+      "depth": 1,
+      "expected_supported": true,
+      "verdict": "SUPPORTED",
+      "duration_ms": 4365,
+      "execution": {
+        "reward": {
+          "compiles": true,
+          "typechecks": true,
+          "lint_clean": true,
+          "tests_successful": true,
+          "tests_passed": 4,
+          "tests_total": 4
+        },
+        "compile": {
+          "success": true,
+          "exit_code": 0,
+          "duration_ms": 1211,
+          "stdout": "",
+          "stderr": "",
+          "output_truncated": false
+        },
+        "typecheck": {
+          "success": true,
+          "exit_code": 0,
+          "duration_ms": 1406,
+          "stdout": "",
+          "stderr": "",
+          "output_truncated": false
+        },
+        "lint": {
+          "success": true,
+          "exit_code": 0,
+          "duration_ms": 924,
+          "stdout": "",
+          "stderr": "",
+          "output_truncated": false
+        },
+        "tests": {
+          "gate": {
+            "success": true,
+            "exit_code": 0,
+            "duration_ms": 815,
+            "stdout": "{\"numTotalTestSuites\":4,\"numPassedTestSuites\":4,\"numFailedTestSuites\":0,\"numPendingTestSuites\":0,\"numTotalTests\":4,\"numPassedTests\":4,\"numFailedTests\":0,\"numPendingTests\":0,\"numTodoTests\":0,\"snapshot\":{\"added\":0,\"failure\":false,\"filesAdded\":0,\"filesRemoved\":0,\"filesRemovedList\":[],\"filesUnmatched\":0,\"filesUpdated\":0,\"matched\":0,\"total\":0,\"unchecked\":0,\"uncheckedKeysByFile\":[],\"unmatched\":0,\"updated\":0,\"didUpdate\":false},\"startTime\":1782934431365,\"success\":true,\"testResults\":[{\"assertionResults\":[{\"ancestorTitles\":[\"held-out edge cases\"],\"fullName\":\"held-out edge cases handles negative and zero values\",\"status\":\"passed\",\"title\":\"handles negative and zero values\",\"duration\":0.6155849999999816,\"failureMessages\":[],\"meta\":{}}],\"startTime\":1782934431742,\"endTime\":1782934431742.6155,\"status\":\"passed\",\"message\":\"\",\"name\":\"/workspace/tests/edge.test.ts\"},{\"assertionResults\":[{\"ancestorTitles\":[\"math pipeline\"],\"fullName\":\"math pipeline adds two values\",\"status\":\"passed\",\"title\":\"adds two values\",\"duration\":0.5588759999999979,\"failureMessages\":[],\"meta\":{}},{\"ancestorTitles\":[\"math pipeline\"],\"fullName\":\"math pipeline doubles a value\",\"status\":\"passed\",\"title\":\"doubles a value\",\"duration\":0.12029200000000628,\"failureMessages\":[],\"meta\":{}},{\"ancestorTitles\":[\"math pipeline\"],\"fullName\":\"math pipeline composes both operations\",\"status\":\"passed\",\"title\":\"composes both operations\",\"duration\":0.05708300000000577,\"failureMessages\":[],\"meta\":{}}],\"startTime\":1782934431590,\"endTime\":1782934431591.1204,\"status\":\"passed\",\"message\":\"\",\"name\":\"/workspace/tests/math.test.ts\"}]}\n",
+            "stderr": "",
+            "output_truncated": false
+          },
+          "passed": 4,
+          "total": 4
+        },
+        "duration_ms": 4364
+      },
+      "error": null
+    },
+    {
+      "id": "g1-unsupported",
+      "depth": 1,
+      "expected_supported": false,
+      "verdict": "UNSUPPORTED",
+      "duration_ms": 3800,
+      "execution": {
+        "reward": {
+          "compiles": true,
+          "typechecks": true,
+          "lint_clean": true,
+          "tests_successful": false,
+          "tests_passed": 1,
+          "tests_total": 4
+        },
+        "compile": {
+          "success": true,
+          "exit_code": 0,
+          "duration_ms": 464,
+          "stdout": "",
+          "stderr": "",
+          "output_truncated": false
+        },
+        "typecheck": {
+          "success": true,
+          "exit_code": 0,
+          "duration_ms": 1715,
+          "stdout": "",
+          "stderr": "",
+          "output_truncated": false
+        },
+        "lint": {
+          "success": true,
+          "exit_code": 0,
+          "duration_ms": 804,
+          "stdout": "",
+          "stderr": "",
+          "output_truncated": false
+        },
+        "tests": {
+          "gate": {
+            "success": false,
+            "exit_code": 1,
+            "duration_ms": 811,
+            "stdout": "{\"numTotalTestSuites\":4,\"numPassedTestSuites\":0,\"numFailedTestSuites\":4,\"numPendingTestSuites\":0,\"numTotalTests\":4,\"numPassedTests\":1,\"numFailedTests\":3,\"numPendingTests\":0,\"numTodoTests\":0,\"snapshot\":{\"added\":0,\"failure\":false,\"filesAdded\":0,\"filesRemoved\":0,\"filesRemovedList\":[],\"filesUnmatched\":0,\"filesUpdated\":0,\"matched\":0,\"total\":0,\"unchecked\":0,\"uncheckedKeysByFile\":[],\"unmatched\":0,\"updated\":0,\"didUpdate\":false},\"startTime\":1782934435149,\"success\":false,\"testResults\":[{\"assertionResults\":[{\"ancestorTitles\":[\"held-out edge cases\"],\"fullName\":\"held-out edge cases handles negative and zero values\",\"status\":\"failed\",\"title\":\"handles negative and zero values\",\"duration\":3.6947999999999865,\"failureMessages\":[\"AssertionError: expected -8 to be +0 // Object.is equality\\n    at /workspace/tests/edge.test.ts:6:24\\n    at file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\\n    at file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\\n    at file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20\\n    at new Promise (<anonymous>)\\n    at runWithTimeout (file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1863:10)\\n    at runTest (file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1574:12)\\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at runSuite (file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)\\n    at runSuite (file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)\"],\"meta\":{}}],\"startTime\":1782934435532,\"endTime\":1782934435535.6948,\"status\":\"failed\",\"message\":\"\",\"name\":\"/workspace/tests/edge.test.ts\"},{\"assertionResults\":[{\"ancestorTitles\":[\"math pipeline\"],\"fullName\":\"math pipeline adds two values\",\"status\":\"failed\",\"title\":\"adds two values\",\"duration\":3.4240489999999966,\"failureMessages\":[\"AssertionError: expected 1 to be 7 // Object.is equality\\n    at /workspace/tests/math.test.ts:6:23\\n    at file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\\n    at file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\\n    at file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20\\n    at new Promise (<anonymous>)\\n    at runWithTimeout (file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1863:10)\\n    at runTest (file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1574:12)\\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at runSuite (file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)\\n    at runSuite (file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)\"],\"meta\":{}},{\"ancestorTitles\":[\"math pipeline\"],\"fullName\":\"math pipeline doubles a value\",\"status\":\"passed\",\"title\":\"doubles a value\",\"duration\":0.14099999999999113,\"failureMessages\":[],\"meta\":{}},{\"ancestorTitles\":[\"math pipeline\"],\"fullName\":\"math pipeline composes both operations\",\"status\":\"failed\",\"title\":\"composes both operations\",\"duration\":0.2970420000000047,\"failureMessages\":[\"AssertionError: expected 6 to be 10 // Object.is equality\\n    at /workspace/tests/math.test.ts:14:25\\n    at file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\\n    at file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\\n    at file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20\\n    at new Promise (<anonymous>)\\n    at runWithTimeout (file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1863:10)\\n    at runTest (file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1574:12)\\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at runSuite (file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)\\n    at runSuite (file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)\"],\"meta\":{}}],\"startTime\":1782934435349,\"endTime\":1782934435352.424,\"status\":\"failed\",\"message\":\"\",\"name\":\"/workspace/tests/math.test.ts\"}]}\n",
+            "stderr": "",
+            "output_truncated": false
+          },
+          "passed": 1,
+          "total": 4
+        },
+        "duration_ms": 3800
+      },
+      "error": null
+    },
+    {
+      "id": "g2-supported",
+      "depth": 2,
+      "expected_supported": true,
+      "verdict": "SUPPORTED",
+      "duration_ms": 3350,
+      "execution": {
+        "reward": {
+          "compiles": true,
+          "typechecks": true,
+          "lint_clean": true,
+          "tests_successful": true,
+          "tests_passed": 4,
+          "tests_total": 4
+        },
+        "compile": {
+          "success": true,
+          "exit_code": 0,
+          "duration_ms": 468,
+          "stdout": "",
+          "stderr": "",
+          "output_truncated": false
+        },
+        "typecheck": {
+          "success": true,
+          "exit_code": 0,
+          "duration_ms": 1203,
+          "stdout": "",
+          "stderr": "",
+          "output_truncated": false
+        },
+        "lint": {
+          "success": true,
+          "exit_code": 0,
+          "duration_ms": 779,
+          "stdout": "",
+          "stderr": "",
+          "output_truncated": false
+        },
+        "tests": {
+          "gate": {
+            "success": true,
+            "exit_code": 0,
+            "duration_ms": 895,
+            "stdout": "{\"numTotalTestSuites\":4,\"numPassedTestSuites\":4,\"numFailedTestSuites\":0,\"numPendingTestSuites\":0,\"numTotalTests\":4,\"numPassedTests\":4,\"numFailedTests\":0,\"numPendingTests\":0,\"numTodoTests\":0,\"snapshot\":{\"added\":0,\"failure\":false,\"filesAdded\":0,\"filesRemoved\":0,\"filesRemovedList\":[],\"filesUnmatched\":0,\"filesUpdated\":0,\"matched\":0,\"total\":0,\"unchecked\":0,\"uncheckedKeysByFile\":[],\"unmatched\":0,\"updated\":0,\"didUpdate\":false},\"startTime\":1782934438495,\"success\":true,\"testResults\":[{\"assertionResults\":[{\"ancestorTitles\":[\"held-out edge cases\"],\"fullName\":\"held-out edge cases handles negative and zero values\",\"status\":\"passed\",\"title\":\"handles negative and zero values\",\"duration\":0.6349600000000066,\"failureMessages\":[],\"meta\":{}}],\"startTime\":1782934438844,\"endTime\":1782934438844.635,\"status\":\"passed\",\"message\":\"\",\"name\":\"/workspace/tests/edge.test.ts\"},{\"assertionResults\":[{\"ancestorTitles\":[\"math pipeline\"],\"fullName\":\"math pipeline adds two values\",\"status\":\"passed\",\"title\":\"adds two values\",\"duration\":0.5444589999999891,\"failureMessages\":[],\"meta\":{}},{\"ancestorTitles\":[\"math pipeline\"],\"fullName\":\"math pipeline doubles a value\",\"status\":\"passed\",\"title\":\"doubles a value\",\"duration\":0.11879199999998491,\"failureMessages\":[],\"meta\":{}},{\"ancestorTitles\":[\"math pipeline\"],\"fullName\":\"math pipeline composes both operations\",\"status\":\"passed\",\"title\":\"composes both operations\",\"duration\":0.057708999999988464,\"failureMessages\":[],\"meta\":{}}],\"startTime\":1782934438677,\"endTime\":1782934438678.119,\"status\":\"passed\",\"message\":\"\",\"name\":\"/workspace/tests/math.test.ts\"}]}\n",
+            "stderr": "",
+            "output_truncated": false
+          },
+          "passed": 4,
+          "total": 4
+        },
+        "duration_ms": 3350
+      },
+      "error": null
+    },
+    {
+      "id": "g2-unsupported",
+      "depth": 2,
+      "expected_supported": false,
+      "verdict": "UNSUPPORTED",
+      "duration_ms": 3381,
+      "execution": {
+        "reward": {
+          "compiles": true,
+          "typechecks": true,
+          "lint_clean": true,
+          "tests_successful": false,
+          "tests_passed": 2,
+          "tests_total": 4
+        },
+        "compile": {
+          "success": true,
+          "exit_code": 0,
+          "duration_ms": 509,
+          "stdout": "",
+          "stderr": "",
+          "output_truncated": false
+        },
+        "typecheck": {
+          "success": true,
+          "exit_code": 0,
+          "duration_ms": 1289,
+          "stdout": "",
+          "stderr": "",
+          "output_truncated": false
+        },
+        "lint": {
+          "success": true,
+          "exit_code": 0,
+          "duration_ms": 810,
+          "stdout": "",
+          "stderr": "",
+          "output_truncated": false
+        },
+        "tests": {
+          "gate": {
+            "success": false,
+            "exit_code": 1,
+            "duration_ms": 770,
+            "stdout": "{\"numTotalTestSuites\":4,\"numPassedTestSuites\":2,\"numFailedTestSuites\":2,\"numPendingTestSuites\":0,\"numTotalTests\":4,\"numPassedTests\":2,\"numFailedTests\":2,\"numPendingTests\":0,\"numTodoTests\":0,\"snapshot\":{\"added\":0,\"failure\":false,\"filesAdded\":0,\"filesRemoved\":0,\"filesRemovedList\":[],\"filesUnmatched\":0,\"filesUpdated\":0,\"matched\":0,\"total\":0,\"unchecked\":0,\"uncheckedKeysByFile\":[],\"unmatched\":0,\"updated\":0,\"didUpdate\":false},\"startTime\":1782934441930,\"success\":false,\"testResults\":[{\"assertionResults\":[{\"ancestorTitles\":[\"held-out edge cases\"],\"fullName\":\"held-out edge cases handles negative and zero values\",\"status\":\"passed\",\"title\":\"handles negative and zero values\",\"duration\":0.6723350000000039,\"failureMessages\":[],\"meta\":{}}],\"startTime\":1782934442245,\"endTime\":1782934442245.6724,\"status\":\"passed\",\"message\":\"\",\"name\":\"/workspace/tests/edge.test.ts\"},{\"assertionResults\":[{\"ancestorTitles\":[\"math pipeline\"],\"fullName\":\"math pipeline adds two values\",\"status\":\"passed\",\"title\":\"adds two values\",\"duration\":0.5912520000000256,\"failureMessages\":[],\"meta\":{}},{\"ancestorTitles\":[\"math pipeline\"],\"fullName\":\"math pipeline doubles a value\",\"status\":\"failed\",\"title\":\"doubles a value\",\"duration\":3.49517400000002,\"failureMessages\":[\"AssertionError: expected 15 to be 10 // Object.is equality\\n    at /workspace/tests/math.test.ts:10:23\\n    at file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\\n    at file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\\n    at file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20\\n    at new Promise (<anonymous>)\\n    at runWithTimeout (file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1863:10)\\n    at runTest (file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1574:12)\\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at runSuite (file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)\\n    at runSuite (file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)\"],\"meta\":{}},{\"ancestorTitles\":[\"math pipeline\"],\"fullName\":\"math pipeline composes both operations\",\"status\":\"failed\",\"title\":\"composes both operations\",\"duration\":0.3610010000000159,\"failureMessages\":[\"AssertionError: expected 15 to be 10 // Object.is equality\\n    at /workspace/tests/math.test.ts:14:25\\n    at file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\\n    at file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\\n    at file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20\\n    at new Promise (<anonymous>)\\n    at runWithTimeout (file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1863:10)\\n    at runTest (file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1574:12)\\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at runSuite (file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)\\n    at runSuite (file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)\"],\"meta\":{}}],\"startTime\":1782934442112,\"endTime\":1782934442116.495,\"status\":\"failed\",\"message\":\"\",\"name\":\"/workspace/tests/math.test.ts\"}]}\n",
+            "stderr": "",
+            "output_truncated": false
+          },
+          "passed": 2,
+          "total": 4
+        },
+        "duration_ms": 3381
+      },
+      "error": null
+    },
+    {
+      "id": "g3-supported",
+      "depth": 3,
+      "expected_supported": true,
+      "verdict": "SUPPORTED",
+      "duration_ms": 3311,
+      "execution": {
+        "reward": {
+          "compiles": true,
+          "typechecks": true,
+          "lint_clean": true,
+          "tests_successful": true,
+          "tests_passed": 4,
+          "tests_total": 4
+        },
+        "compile": {
+          "success": true,
+          "exit_code": 0,
+          "duration_ms": 454,
+          "stdout": "",
+          "stderr": "",
+          "output_truncated": false
+        },
+        "typecheck": {
+          "success": true,
+          "exit_code": 0,
+          "duration_ms": 1279,
+          "stdout": "",
+          "stderr": "",
+          "output_truncated": false
+        },
+        "lint": {
+          "success": true,
+          "exit_code": 0,
+          "duration_ms": 777,
+          "stdout": "",
+          "stderr": "",
+          "output_truncated": false
+        },
+        "tests": {
+          "gate": {
+            "success": true,
+            "exit_code": 0,
+            "duration_ms": 798,
+            "stdout": "{\"numTotalTestSuites\":4,\"numPassedTestSuites\":4,\"numFailedTestSuites\":0,\"numPendingTestSuites\":0,\"numTotalTests\":4,\"numPassedTests\":4,\"numFailedTests\":0,\"numPendingTests\":0,\"numTodoTests\":0,\"snapshot\":{\"added\":0,\"failure\":false,\"filesAdded\":0,\"filesRemoved\":0,\"filesRemovedList\":[],\"filesUnmatched\":0,\"filesUpdated\":0,\"matched\":0,\"total\":0,\"unchecked\":0,\"uncheckedKeysByFile\":[],\"unmatched\":0,\"updated\":0,\"didUpdate\":false},\"startTime\":1782934445246,\"success\":true,\"testResults\":[{\"assertionResults\":[{\"ancestorTitles\":[\"held-out edge cases\"],\"fullName\":\"held-out edge cases handles negative and zero values\",\"status\":\"passed\",\"title\":\"handles negative and zero values\",\"duration\":0.6697509999999909,\"failureMessages\":[],\"meta\":{}}],\"startTime\":1782934445553,\"endTime\":1782934445553.6697,\"status\":\"passed\",\"message\":\"\",\"name\":\"/workspace/tests/edge.test.ts\"},{\"assertionResults\":[{\"ancestorTitles\":[\"math pipeline\"],\"fullName\":\"math pipeline adds two values\",\"status\":\"passed\",\"title\":\"adds two values\",\"duration\":0.5329590000000053,\"failureMessages\":[],\"meta\":{}},{\"ancestorTitles\":[\"math pipeline\"],\"fullName\":\"math pipeline doubles a value\",\"status\":\"passed\",\"title\":\"doubles a value\",\"duration\":0.117250999999996,\"failureMessages\":[],\"meta\":{}},{\"ancestorTitles\":[\"math pipeline\"],\"fullName\":\"math pipeline composes both operations\",\"status\":\"passed\",\"title\":\"composes both operations\",\"duration\":0.06533299999999542,\"failureMessages\":[],\"meta\":{}}],\"startTime\":1782934445374,\"endTime\":1782934445374.533,\"status\":\"passed\",\"message\":\"\",\"name\":\"/workspace/tests/math.test.ts\"}]}\n",
+            "stderr": "",
+            "output_truncated": false
+          },
+          "passed": 4,
+          "total": 4
+        },
+        "duration_ms": 3311
+      },
+      "error": null
+    },
+    {
+      "id": "g3-unsupported",
+      "depth": 3,
+      "expected_supported": false,
+      "verdict": "UNSUPPORTED",
+      "duration_ms": 3463,
+      "execution": {
+        "reward": {
+          "compiles": true,
+          "typechecks": true,
+          "lint_clean": true,
+          "tests_successful": false,
+          "tests_passed": 2,
+          "tests_total": 4
+        },
+        "compile": {
+          "success": true,
+          "exit_code": 0,
+          "duration_ms": 475,
+          "stdout": "",
+          "stderr": "",
+          "output_truncated": false
+        },
+        "typecheck": {
+          "success": true,
+          "exit_code": 0,
+          "duration_ms": 1334,
+          "stdout": "",
+          "stderr": "",
+          "output_truncated": false
+        },
+        "lint": {
+          "success": true,
+          "exit_code": 0,
+          "duration_ms": 896,
+          "stdout": "",
+          "stderr": "",
+          "output_truncated": false
+        },
+        "tests": {
+          "gate": {
+            "success": false,
+            "exit_code": 1,
+            "duration_ms": 751,
+            "stdout": "{\"numTotalTestSuites\":4,\"numPassedTestSuites\":0,\"numFailedTestSuites\":4,\"numPendingTestSuites\":0,\"numTotalTests\":4,\"numPassedTests\":2,\"numFailedTests\":2,\"numPendingTests\":0,\"numTodoTests\":0,\"snapshot\":{\"added\":0,\"failure\":false,\"filesAdded\":0,\"filesRemoved\":0,\"filesRemovedList\":[],\"filesUnmatched\":0,\"filesUpdated\":0,\"matched\":0,\"total\":0,\"unchecked\":0,\"uncheckedKeysByFile\":[],\"unmatched\":0,\"updated\":0,\"didUpdate\":false},\"startTime\":1782934448740,\"success\":false,\"testResults\":[{\"assertionResults\":[{\"ancestorTitles\":[\"held-out edge cases\"],\"fullName\":\"held-out edge cases handles negative and zero values\",\"status\":\"failed\",\"title\":\"handles negative and zero values\",\"duration\":3.4062160000000006,\"failureMessages\":[\"AssertionError: expected 2 to be +0 // Object.is equality\\n    at /workspace/tests/edge.test.ts:8:26\\n    at file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\\n    at file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\\n    at file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20\\n    at new Promise (<anonymous>)\\n    at runWithTimeout (file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1863:10)\\n    at runTest (file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1574:12)\\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at runSuite (file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)\\n    at runSuite (file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)\"],\"meta\":{}}],\"startTime\":1782934449053,\"endTime\":1782934449056.4062,\"status\":\"failed\",\"message\":\"\",\"name\":\"/workspace/tests/edge.test.ts\"},{\"assertionResults\":[{\"ancestorTitles\":[\"math pipeline\"],\"fullName\":\"math pipeline adds two values\",\"status\":\"passed\",\"title\":\"adds two values\",\"duration\":0.5484600000000057,\"failureMessages\":[],\"meta\":{}},{\"ancestorTitles\":[\"math pipeline\"],\"fullName\":\"math pipeline doubles a value\",\"status\":\"passed\",\"title\":\"doubles a value\",\"duration\":0.12937499999999602,\"failureMessages\":[],\"meta\":{}},{\"ancestorTitles\":[\"math pipeline\"],\"fullName\":\"math pipeline composes both operations\",\"status\":\"failed\",\"title\":\"composes both operations\",\"duration\":3.142882,\"failureMessages\":[\"AssertionError: expected 12 to be 10 // Object.is equality\\n    at /workspace/tests/math.test.ts:14:25\\n    at file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\\n    at file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\\n    at file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20\\n    at new Promise (<anonymous>)\\n    at runWithTimeout (file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1863:10)\\n    at runTest (file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1574:12)\\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\\n    at runSuite (file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)\\n    at runSuite (file:///opt/metis-tools/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)\"],\"meta\":{}}],\"startTime\":1782934448874,\"endTime\":1782934448878.1428,\"status\":\"failed\",\"message\":\"\",\"name\":\"/workspace/tests/math.test.ts\"}]}\n",
+            "stderr": "",
+            "output_truncated": false
+          },
+          "passed": 2,
+          "total": 4
+        },
+        "duration_ms": 3463
+      },
+      "error": null
+    }
+  ],
+  "by_depth": {
+    "g1": {
+      "counts": {
+        "n_pos": 1,
+        "n_neg": 1,
+        "tp": 1,
+        "tn": 1,
+        "fab": 0,
+        "over_abstain": 0,
+        "uncertain": 0
+      },
+      "metrics": {
+        "tpr": 1.0,
+        "tnr": 1.0,
+        "fab_rate": 0.0,
+        "balanced_accuracy": 1.0
+      }
+    },
+    "g2": {
+      "counts": {
+        "n_pos": 1,
+        "n_neg": 1,
+        "tp": 1,
+        "tn": 1,
+        "fab": 0,
+        "over_abstain": 0,
+        "uncertain": 0
+      },
+      "metrics": {
+        "tpr": 1.0,
+        "tnr": 1.0,
+        "fab_rate": 0.0,
+        "balanced_accuracy": 1.0
+      }
+    },
+    "g3": {
+      "counts": {
+        "n_pos": 1,
+        "n_neg": 1,
+        "tp": 1,
+        "tn": 1,
+        "fab": 0,
+        "over_abstain": 0,
+        "uncertain": 0
+      },
+      "metrics": {
+        "tpr": 1.0,
+        "tnr": 1.0,
+        "fab_rate": 0.0,
+        "balanced_accuracy": 1.0
+      }
+    }
+  }
+}
