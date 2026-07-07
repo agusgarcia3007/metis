@@ -29,3 +29,5 @@ train-m/**/.venv/
 train-m/repair/fixture/node_modules/
 train-m/repair/fixture/bun.lock
 train-m/repair/**/__pycache__/
+train-m/repair/*.safetensors
+train-m/repair/data/

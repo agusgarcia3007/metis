@@ -448,3 +448,28 @@ monitor rejections into the verified-trace flywheel.
 - **Next:** scale `breaker.py` into a git-history repair miner; train a stronger Cortex on the
   transitions; re-run `cortex_generator.py` and watch pass@k leave zero. Only then does the doc-14
   flywheel (pass@1-vs-round) have a generator worth amplifying.
+
+### 2026-07-07 — First repair-training experiment: the ruler catches memorization
+
+- **Built:** `miner.py` (scales the breaker to 150 verified type-error transitions over disjoint
+  synthetic functions, real `tsc` diagnostics), `train_repair.py` (warm-start from the night2 FIM
+  14M, Muon, `<edit>`-span 3× weighted, gentle: 400 steps / 2.0 min / `nice`), `repair_generator.py`
+  (inference in the trained `<state><diagnostic><edit>` format). calc.ts held out (never mined).
+- **Measured (pass@k on HELD-OUT calc.ts, vs untrained baseline 0.0 → best-score 0.13):**
+  metis-repair-14M pass@1/4/8 = **0.0**, but **mean_best_score 0.13 → 0.333**. Dump of the actual
+  candidates decomposes it exactly: `wrong_arith_op` (a test-failure mutation *never in training*) →
+  0.0 garbage; `wrong_return_type` & `undefined_symbol` → **0.5** each — syntactically/type-valid TS,
+  but the model **emits a memorized training function (`scaleUp`, `a+b`)** instead of repairing the
+  held-out `add`/`scale`. mean = (0+0.5+0.5)/3 = 0.333.
+- **Decisions/diagnosis:** training on repair-transition data *does* move the model (0.13→0.33) — the
+  data shape is right (VERA-R §2 confirmed). But 14M + 150 synthetic examples **overfits to
+  memorization**, not repair skill: it produces valid TS copied from training, not a fix for the
+  input. pass@1=0 is honest and correct. The failure is capacity+data, not the optimizer.
+- **Surprises:** the ruler is precise enough to separate "garbage" (0.0), "valid-but-wrong" (0.5),
+  and would flag "green" (1.0) — it diagnosed the exact failure mode (memorization) from the score
+  alone, then confirmed by candidate dump. This is the measurement discipline the project needed.
+- **Verdict:** **partial go.** Direction confirmed (repair data helps, measurably); the tiny-model +
+  tiny-synthetic-data combo memorizes. Need real diverse data + more capacity to cross to green.
+- **Next:** replace synthetic mutations with a **git-history repair miner** (thousands of real
+  (pre-fix, diagnostic, patch) triples across many repos) so the model must learn the repair MAP, not
+  a handful of function bodies; only then is pass@1 off zero a real generalization result.
