@@ -32,3 +32,5 @@ train-m/repair/**/__pycache__/
 train-m/repair/*.safetensors
 train-m/repair/data/
 train-m/repair/metis-edit.safetensors
+train-m/repair/data/lattices*.json*
+train-m/repair/data/*.jsonl

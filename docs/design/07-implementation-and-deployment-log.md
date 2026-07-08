@@ -529,3 +529,36 @@ monitor rejections into the verified-trace flywheel.
 - **Next:** build the in-repo verifier/miner — run `tsc`/tests inside each real repo, mutate real
   files with deps present, harvest verified transitions at volume. Then freeze a ≥100-task held-out
   eval from it (Sakana §11.1) before any GPU.
+
+### 2026-07-08 — Experiment A: the repair-lattice ranker — pass@1 leaves ZERO (0.0 → 1.0)
+
+- **Built (Sakana §1/§2.1/§7):** `editops.py` (typed edit operators keyed by diagnostic family:
+  set_return_type, replace_identifier, strip_typo, swap_binary_op, + a null-guard distractor; with
+  **line-number localization** so the edit targets the enclosing function the diagnostic points to,
+  not the first match), `lattice.py` (per broken state: enumerate typed candidates, verify each,
+  record family-aware success — typecheck for type errors, tests for logic bugs), `ranker.py`
+  (Experiment A: a 6-feature logistic ranker orders candidates; verify in ranked order).
+- **Measured:** the typed action space **contains a green fix for 3/3 held-out calc.ts tasks**
+  (vs the generator's 0/3). Ranking on held-out calc.ts:
+  | ranker | top1 | MRR | calls_to_green | solved |
+  |---|---|---|---|---|
+  | random | 0.67 | 0.722 | 2.7 | 3/3 |
+  | heuristic | 1.00 | 1.000 | 1.0 | 3/3 |
+  | learned | 1.00 | 1.000 | 1.0 | 3/3 |
+  Learned weights are sensible: `type_from_diag +2.98` (the diagnostic names the fix type),
+  `edit_minimality +1.14`, `op_match_diag +0.69`, `is_null_guard −2.52` (distractor down-weighted).
+- **The headline:** reframing repair as **ranking a verified typed-action set** instead of
+  **generating from scratch** took pass@1 from **0.0 (three failed generator experiments) to 1.0**,
+  on the same held-out tasks, on the Mac, in seconds. Sakana's core thesis — "train the ranker
+  before the generator; a tiny model should be an amortized guide over a verifier-labelled repair
+  landscape" — validated on first contact.
+- **Honest caveats:** (1) N=3 held-out is too small to separate learned from heuristic (both hit the
+  1.0 ceiling); the ≥100-task eval (Sakana §11.1) is needed to actually stress the ranker.
+  (2) The action space is only green because the edit-ops cover exactly the 3 bug families in the
+  fixture; real bugs need many more operators. (3) Family-aware success (typecheck for type errors)
+  is principled but means the ranker isn't yet tested on logic bugs needing tests at scale.
+- **Verdict:** **strong go.** The lattice/ranker reframing is the first thing in this project to move
+  pass@1 off zero. This is the vertical slice; now it needs breadth (more operators, more families)
+  and a real eval (≥100 tasks).
+- **Next:** freeze the ≥100-task held-out eval; expand typed edit-ops to more diagnostic families;
+  wire in-repo mutation as the lattice data source (real code + real deps + real verification).
