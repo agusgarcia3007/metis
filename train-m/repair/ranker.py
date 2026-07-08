@@ -30,7 +30,7 @@ from lattice import build_lattice, features
 
 HERE = Path(__file__).parent
 FEATS = ["op_match_diag", "type_from_diag", "is_strip_typo", "is_null_guard",
-         "edit_minimality", "bias"]
+         "edit_minimality", "name_sim", "bias"]
 
 
 def to_vec(feat: dict) -> np.ndarray:

@@ -54,8 +54,35 @@ def features(broken: str, diagnostic: str, op: str, span: str, cand: str) -> dic
         "is_strip_typo": 1.0 if op == "strip_typo" else 0.0,
         "is_null_guard": 1.0 if op == "add_null_guard" else 0.0,
         "edit_minimality": 1.0 / (1.0 + edit_size / 10.0),
+        "name_sim": name_similarity(diagnostic, op, span),
         "bias": 1.0,
     }
+
+
+def _editdist(a: str, b: str) -> int:
+    if not a or not b:
+        return max(len(a), len(b))
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        cur = [i]
+        for j, cb in enumerate(b, 1):
+            cur.append(min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (ca != cb)))
+        prev = cur
+    return prev[-1]
+
+
+def name_similarity(diagnostic: str, op: str, span: str) -> float:
+    """For undefined-symbol repairs, the intended identifier is usually the one
+    closest (edit distance) to the undefined name. The heuristic ranker does NOT
+    use this — so it's where a learned ranker can add value."""
+    if op not in ("replace_identifier", "strip_typo"):
+        return 0.0
+    m = TS2304.search(diagnostic)
+    if not m or ":" not in span:
+        return 0.0
+    bad, cand_id = m.group(1), span.split(":")[-1]
+    d = _editdist(bad, cand_id)
+    return 1.0 - d / max(len(bad), len(cand_id), 1)
 
 
 def build_lattice(broken: str, diagnostic: str, file: str = "src/calc.ts", verify=True):

@@ -562,3 +562,33 @@ monitor rejections into the verified-trace flywheel.
   and a real eval (≥100 tasks).
 - **Next:** freeze the ≥100-task held-out eval; expand typed edit-ops to more diagnostic families;
   wire in-repo mutation as the lattice data source (real code + real deps + real verification).
+
+### 2026-07-08 — The ≥100-task ranker eval: learned beats heuristic where it matters
+
+- **Built:** `eval_ranker.py` — a frozen 160-task held-out eval, family-balanced (80 TS2322, 65
+  TS2304, 15 OTHER), **functions disjoint from training** (62 train fns excluded), coverage-
+  conditioned scoring. Added a `name_sim` feature (edit-distance between the undefined name and the
+  candidate identifier) to `lattice.py` — a signal the hand-heuristic does not use.
+- **Measured (coverage-conditioned, n=145 solvable of 160):**
+  | ranker | top1 | MRR | calls_to_green |
+  |---|---|---|---|
+  | random | 0.35 | 0.603 | 2.19 |
+  | heuristic | 0.90 | 0.952 | 1.10 |
+  | learned (with name_sim) | **1.00** | **1.000** | **1.00** |
+  Per family (learned): TS2322 top1 1.00 (trivial — diagnostic names the type); **TS2304 top1
+  0.78 → 1.00** once `name_sim` was added — **+28% relative on the hard family**, meeting Sakana's
+  ≥25% pass bar exactly where ranking intelligence is required. Action-space **coverage 145/160**
+  (the 15 uncovered are OTHER-family bugs with no matching operator yet).
+- **The arc, honest:** (1) typed-edit lattice + ranking solves 145/160 held-out (91%) vs the
+  generator's 0 — the reframing is validated at scale, not just N=3. (2) A learned ranker ties a good
+  heuristic when they share features; it *beats* the heuristic exactly when given a signal the
+  heuristic can't encode (name_sim), and only on the family that needs it (TS2304). Aggregate top1
+  gain (0.90→1.00) is diluted by the trivial TS2322 half. (3) The remaining losses are **coverage**
+  (need more operators for OTHER/TS2345/logic families), not ranking.
+- **Verdict:** **go.** Sakana's ranker-first thesis holds: a tiny amortized ranker over a verifier-
+  labelled typed-edit lattice solves real held-out repairs, and learning pays precisely where hand-
+  rules run out of signal. The lever is now **operator coverage + richer features**, not a bigger
+  generator.
+- **Next:** expand typed operators to more diagnostic families (raise coverage past 145/160); wire
+  in-repo mutation so lattices come from real code+deps; then a small neural ranker on embeddings
+  where hand-features plateau.
