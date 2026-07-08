@@ -19,6 +19,8 @@ import re
 TS2322 = re.compile(r"TS2322: Type '([^']+)' is not assignable to type '([^']+)'")
 TS2304 = re.compile(r"TS2304: Cannot find name '([^']+)'")
 TS2345 = re.compile(r"TS2345: Argument of type")
+# TS2551/TS2552 carry the fix inline: "Cannot find name 'X'. Did you mean 'Y'?"
+TS_SUGGEST = re.compile(r"TS255[12]: Cannot find name '([^']+)'\.\s*Did you mean '([^']+)'")
 RET_TYPE = re.compile(r"\)\s*:\s*([\w\[\]]+)\s*\{")
 PARAM = re.compile(r"[(,]\s*([A-Za-z_]\w*)\s*:")
 DIAG_LINE = re.compile(r"\((\d+),\d+\)")
@@ -61,6 +63,18 @@ def candidates(broken: str, diagnostic: str) -> list[tuple[str, str, str]]:
 
     dline = int(m.group(1)) if (m := DIAG_LINE.search(diagnostic)) else 1
 
+    # --- family: compiler-suggested name fix (TS2551/TS2552) ---
+    # the diagnostic literally tells us the fix; apply it, plus a couple of scope
+    # distractors so ranking still has to prefer the suggestion.
+    if m := TS_SUGGEST.search(diagnostic):
+        bad, suggestion = m.group(1), m.group(2)
+        out.append(("apply_ts_suggestion", f"use:{suggestion}",
+                    re.sub(rf"\b{re.escape(bad)}\b", suggestion, broken)))
+        for ident in in_scope_idents(broken)[:3]:
+            if ident not in (bad, suggestion):
+                out.append(("replace_identifier", f"use:{ident}",
+                            re.sub(rf"\b{re.escape(bad)}\b", ident, broken)))
+
     # --- family: return-type mismatch (TS2322) ---
     if m := TS2322.search(diagnostic):
         actual = m.group(1)                            # Type 'actual' not assignable to 'declared'
@@ -91,6 +105,25 @@ def candidates(broken: str, diagnostic: str) -> list[tuple[str, str, str]]:
         if len(bad) >= 2 and bad[0] == bad[1]:
             cand = re.sub(rf"\b{re.escape(bad)}\b", bad[0], broken)
             out.append(("strip_typo", f"use:{bad[0]}", cand))
+
+    # --- family: possibly-undefined / null (TS18048, TS2532, TS2531) ---
+    if re.search(r"TS(18048|2532|2531)", diagnostic):
+        span = enclosing_signature_span(broken, dline)
+        # optional-chain the flagged access, and add a nullish default
+        m2 = re.search(r"'([\w.]+)' is possibly", diagnostic)
+        if m2:
+            sym = m2.group(1)
+            out.append(("optional_chain", f"use:{sym}?",
+                        broken.replace(sym + ".", sym + "?.", 1)))
+            out.append(("nullish_default", f"use:{sym}??",
+                        re.sub(rf"\breturn ({re.escape(sym)}\b[^;]*)", r"return (\1) ?? 0", broken, count=1)))
+
+    # --- family: expected N arguments (TS2554) ---
+    if m2 := re.search(r"TS2554: Expected (\d+) arguments, but got (\d+)", diagnostic):
+        want, got = int(m2.group(1)), int(m2.group(2))
+        if got < want:  # add a trailing argument
+            out.append(("add_argument", "call:+arg",
+                        re.sub(r"\(([^()]*)\)(\s*[;,\n])", r"(\1, 0)\2", broken, count=1)))
 
     # --- family: test/logic failure (no TS code, or a failing assertion) ---
     # swap binary operators in the flagged line — covers wrong-operator arithmetic bugs

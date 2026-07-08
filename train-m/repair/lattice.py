@@ -16,14 +16,16 @@ import json
 import re
 from pathlib import Path
 
-from editops import candidates, TS2322, TS2304, DIAG_LINE
+from editops import candidates, TS2322, TS2304, TS_SUGGEST, DIAG_LINE
 from verifier import verify_patch
 
 OPS = ["set_return_type", "set_return_type_from_diag", "replace_identifier",
-       "strip_typo", "swap_binary_op", "add_null_guard"]
+       "strip_typo", "swap_binary_op", "add_null_guard", "apply_ts_suggestion"]
 
 
 def diag_family(diag: str) -> str:
+    if TS_SUGGEST.search(diag):
+        return "TS2552"
     if TS2322.search(diag):
         return "TS2322"
     if TS2304.search(diag):
@@ -39,7 +41,8 @@ def features(broken: str, diagnostic: str, op: str, span: str, cand: str) -> dic
     # does this op family match this diagnostic family? (the load-bearing signal)
     match = ((op.startswith("set_return_type") and fam == "TS2322") or
              (op in ("replace_identifier", "strip_typo") and fam == "TS2304") or
-             (op == "swap_binary_op" and fam == "TEST"))
+             (op == "swap_binary_op" and fam == "TEST") or
+             (op == "apply_ts_suggestion" and fam == "TS2552"))
     # for return-type ops: does the chosen type equal the type named in the diagnostic?
     type_from_diag = 0.0
     if op == "set_return_type_from_diag":

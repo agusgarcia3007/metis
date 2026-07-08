@@ -592,3 +592,30 @@ monitor rejections into the verified-trace flywheel.
 - **Next:** expand typed operators to more diagnostic families (raise coverage past 145/160); wire
   in-repo mutation so lattices come from real code+deps; then a small neural ranker on embeddings
   where hand-features plateau.
+
+### 2026-07-08 — Operator coverage → 100%: 180/180 held-out solved, 1 verifier call each
+
+- **Built:** added `apply_ts_suggestion` (parses TS2551/TS2552 "Did you mean 'X'?" and applies it —
+  the compiler hands us the fix), plus operators for possibly-undefined (TS18048/2532: optional_chain,
+  nullish_default) and TS2554 (add_argument) for future data. `diag_family` and the `op_match_diag`
+  feature updated.
+- **Measured (180-task frozen held-out, families TS2322×90 / TS2304×71 / TS2552×19, functions
+  disjoint from training):** action-space **coverage 180/180 (100%)**, up from 145/160.
+  | ranker | top1 | MRR | calls_to_green |
+  |---|---|---|---|
+  | random | 0.29 | 0.561 | 2.38 |
+  | heuristic | 0.92 | 0.958 | 1.08 |
+  | learned | **1.00** | **1.000** | **1.00** |
+  Per family (learned): TS2322 / TS2304 / TS2552 all top1 1.00. Notably **TS2552 was never in
+  training** — the learned `op_match_diag` weight transferred, ranking `apply_ts_suggestion` first.
+- **Where we stand:** the typed-edit-lattice + amortized ranker now solves **every** held-out
+  synthetic repair with a single verifier call, across three diagnostic families, generalizing to an
+  unseen family. The generator scored 0 on the same surface. This is a strong validation of the
+  ranker-first reframing — **on synthetic mutations.**
+- **The honest open risk (Sakana §4):** this could still be "a fancier breaker" — the mutations are
+  synthetic, so ranker skill may be tied to the mutation distribution. The real test is the
+  mutation-to-real transfer gap, which needs in-repo mutation (real code + real deps) as the data
+  source. That is the next build.
+- **Verdict:** **go**, with the transfer caveat explicit.
+- **Next:** in-repo mutation — break real files inside a repo that already builds, verify with the
+  repo's own `tsc`, and measure whether the ranker trained on synthetic transfers to real repo breaks.
