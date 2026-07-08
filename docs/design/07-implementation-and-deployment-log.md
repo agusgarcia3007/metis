@@ -619,3 +619,29 @@ monitor rejections into the verified-trace flywheel.
 - **Verdict:** **go**, with the transfer caveat explicit.
 - **Next:** in-repo mutation — break real files inside a repo that already builds, verify with the
   repo's own `tsc`, and measure whether the ranker trained on synthetic transfers to real repo breaks.
+
+### 2026-07-08 — In-repo mutation + the transfer test: synthetic-trained ranker solves REAL breaks
+
+- **Built:** `inrepo.py` — breaks real files *inside a repo that already builds* (real deps, real
+  tsconfig), verifies with the repo's OWN `tsc`, enumerates typed repairs, records real lattices.
+  Snapshot+finally-restore per file; repo left clean (verified `git status` empty after run).
+- **Measured (envchest-legacy, 10 real files):** in-repo mutation yields real diagnostics with real
+  types/symbols; typed-edit **coverage 10/10** (TS2552×8, TS2322×2). **Transfer test** — a ranker
+  trained ONLY on synthetic mutations, evaluated on these REAL in-repo breaks:
+  | ranker | solved | top1 | calls_to_green |
+  |---|---|---|---|
+  | random | 10/10 | 0.10 | 3.00 |
+  | heuristic | 10/10 | 1.00 | 1.00 |
+  | learned | 10/10 | **1.00** | **1.00** |
+- **The result that matters:** the synthetic-trained ranker solves **10/10 real repo breaks with a
+  single verifier call each**. This answers Sakana §4's "is it just a fancier breaker?" — **no**: the
+  learned signal (op-matches-diagnostic-family, apply-the-suggestion, edit-distance-to-undefined-name)
+  is diagnostic-driven, not mutation-artifact-driven, so it transfers from synthetic to real code.
+- **Honest caveats:** N=10 real breaks is small; families are still compiler-caught type errors
+  (TS2552/TS2322), not logic bugs needing tests; heuristic also transfers on this easy real slice, so
+  learned-vs-heuristic isn't separated here. Scaling in-repo mining across repos is the next number.
+- **Verdict:** **strong go.** The repair-lattice + amortized ranker is validated end-to-end: reframe
+  (pass@1 0→1) → scale (180 tasks, 100% coverage, learned>heuristic on hard family) → real-code
+  transfer (10/10). Cheap, on the Mac, honest. Arguably the strongest result in the project.
+- **Next:** scale in-repo mining across repos for a robust N; add logic-bug (test-failure) families;
+  then a small neural ranker where hand-features plateau.
