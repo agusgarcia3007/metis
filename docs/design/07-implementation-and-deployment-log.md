@@ -645,3 +645,21 @@ monitor rejections into the verified-trace flywheel.
   transfer (10/10). Cheap, on the Mac, honest. Arguably the strongest result in the project.
 - **Next:** scale in-repo mining across repos for a robust N; add logic-bug (test-failure) families;
   then a small neural ranker where hand-features plateau.
+
+### 2026-07-08 — Transfer confirmed at scale: synthetic ranker solves 45/45 real in-repo breaks
+
+- **Measured:** scaled in-repo mining to 2 repos (envchest-legacy + argos, both left git-clean),
+  **52 real lattices, coverage 45/52**. Transfer test (ranker trained ONLY on synthetic, evaluated
+  on the 45 covered REAL breaks): learned **top1=1.00, MRR=1.000, calls_to_green=1.00**; random 0.20.
+  Real families skew TS2552×41 / TS2322×4 (the rename-a-use mutation usually yields a "did you mean"
+  suggestion). Robust confirmation of the N=10 result.
+- **Safety note:** SIGTERM-killing the miner mid-`tsc` bypassed the finally-restore and left 2 files
+  dirty in a slow repo; `git checkout` recovered them. Added incremental per-repo save. Lesson: the
+  git-tracked repo is the real safety net, not just the finally block.
+- **Honest limit:** the real breaks are diagnostic-informative type errors, so learned ties heuristic
+  here (both transfer perfectly); the learned>heuristic separation only appears on harder families
+  (synthetic TS2304, +28%). Logic bugs needing test-execution per candidate are the untested, slower
+  frontier.
+- **Verdict:** **strong go, consolidated.** End-to-end validation complete on the Mac: reframe
+  (pass@1 0→1) → scale (180 synthetic, 100% coverage, learned>heuristic on hard family) → real-code
+  transfer (45/45, 1 verifier call each). The ranker-first, verifier-as-teacher thesis holds.

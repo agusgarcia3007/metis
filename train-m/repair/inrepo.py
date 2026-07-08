@@ -106,13 +106,13 @@ def main():
     ap.add_argument("--max-files", type=int, default=12)
     ap.add_argument("--out", default="data/inrepo_lattices.json")
     args = ap.parse_args()
+    out = Path(__file__).parent / args.out
     allL = []
     for r in args.repos:
         repo = Path(r).expanduser()
         print(f"=== {repo.name} ===")
         allL += mine_repo(repo, args.max_files)
-    out = Path(__file__).parent / args.out
-    json.dump(allL, open(out, "w"))
+        json.dump(allL, open(out, "w"))   # incremental save after each repo
     cov = sum(1 for l in allL if any(a["success"] for a in l["actions"]))
     fams = {}
     for l in allL:

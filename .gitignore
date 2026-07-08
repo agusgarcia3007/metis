@@ -34,3 +34,4 @@ train-m/repair/data/
 train-m/repair/metis-edit.safetensors
 train-m/repair/data/lattices*.json*
 train-m/repair/data/*.jsonl
+train-m/repair/data/inrepo*.json
