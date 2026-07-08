@@ -502,3 +502,30 @@ monitor rejections into the verified-trace flywheel.
 - **Next:** the real run is now well-specified and de-risked by these negatives: BPE + ~0.3B +
   repair-transition data at scale, measured on this exact harness. pass@1 leaving zero there is a real
   result; here it honestly cannot.
+
+### 2026-07-08 — Git-history repair miner: 0 real transitions, and WHY (Sakana §11.2 confirmed)
+
+- **Built:** `git_miner.py` — for each commit touching ≤3 `.ts` files, diff the self-contained
+  functions before vs after; a pair where `after` typechecks GREEN in isolation and `before` is RED
+  is a real, compiler-verified repair transition. `large_k.py` also added (Sakana §11.3).
+- **Measured:** across 6 of the user's TS repos (elyisia-core, xmcp, envchest-legacy, llmlabs, argos,
+  aion): **0 real transitions.** Diagnostic on elyisia-core: **194 commits touch 1-3 non-test .ts
+  files, but 0 self-contained functions exist in any changed file.** The miner works; the data is the
+  problem. large_k on the existing checkpoints: whole-file pass@16/64 = 0, best-score flat 0.333
+  (no support emerging — but N=3 held-out makes this coarse, Sakana §11.1).
+- **Finding (definitive):** you cannot mine real repair data with *isolated* verification — real code
+  is never self-contained (imports, types, cross-symbol refs), so `tsc`-in-a-fixture rejects all of
+  it. This is exactly Sakana's §11.2 "you need a build harness" warning, now proven with numbers.
+- **The fork this creates:** real repair data requires verifying code WITH its dependencies present.
+  Two honest paths: (A) a **build harness over historical commits** (checkout → install deps → tsc +
+  the repo's own tests) — captures logic bugs caught by tests too, but dependency drift over history
+  is real pain; (B) **in-repo mutation**: break a real file *inside its working repo* (node_modules +
+  tsconfig present) and verify with the repo's own `tsc`/tests — real code + real deps + real
+  verification, no historical-install nightmare. (B) is the pragmatic unlock.
+- **Verdict:** the git miner as built is a dead end for real data (isolated verification), but it
+  earned its keep: it proved, cheaply, that isolated verification can't touch real repos — which
+  saves us from feeding a GPU run synthetic-only data believing it was real. Next real-data step is
+  in-repo verification (B).
+- **Next:** build the in-repo verifier/miner — run `tsc`/tests inside each real repo, mutate real
+  files with deps present, harvest verified transitions at volume. Then freeze a ≥100-task held-out
+  eval from it (Sakana §11.1) before any GPU.
